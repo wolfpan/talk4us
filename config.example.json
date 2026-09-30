@@ -1,6 +1,13 @@
 {
   "defaultModel": "glm",
   "hotwordsModel": "glm",
+  "hotwordsSearch": {
+    "enabled": true,
+    "cx": "env:GOOGLE_CSE_ID",
+    "key": "env:GOOGLE_CSE_KEY",
+    "dateRestrict": "d14",
+    "queriesPerLang": 5
+  },
   "hotwordsExtras": {
     "zh": [
       {

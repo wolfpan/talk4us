@@ -525,7 +525,8 @@ function buildHotwordsPrompt(lang, weekKey, count) {
 - "translation": 对应的地道英文表达（简短）
 - "category": 所属领域，中文，从「科技/数码/时事/AI/机器人/财经/科学/电影/电视剧/生活」中选择
 - "origin": 用一句中文（35字以内）点明该词对应的具体热点事件或来源
-- "source": 报道该事件的权威来源机构名（如：新华网、人民网、36氪、澎湃、TechCrunch、The Verge、NHK、日经、韩联社等，只写机构名不要URL）`
+- "source": 报道该事件的权威来源机构名（如：新华网、人民网、36氪、澎湃、TechCrunch、The Verge、NHK、日经、韩联社等，只写机构名不要URL）
+- "newsUrl": 仅当提供了【新闻线索】且词条直接来自某条线索时，原样填写该线索 URL；否则留空字符串`
         },
         en: {
             intro: `You are a breaking-news editor. Identify ${count} trending terms / slang / buzzwords born from REAL hot events of this month (ISO week ${weekKey}) — news, product launches, sports, entertainment, viral social media moments.
@@ -542,7 +543,8 @@ function buildHotwordsPrompt(lang, weekKey, count) {
 - "translation": its natural Chinese equivalent (short)
 - "category": one of Tech/Gadgets/News/AI/Robotics/Finance/Science/Movies/TV Drama/Lifestyle (in English)
 - "origin": one English sentence (max 22 words) naming the specific event it comes from
-- "source": the authoritative outlet covering it (e.g. TechCrunch, The Verge, Reuters, NHK, Yonhap; name only, no URL)`
+- "source": the authoritative outlet covering it (e.g. TechCrunch, The Verge, Reuters, NHK, Yonhap; name only, no URL)
+- "newsUrl": only when [NEWS CLUES] are provided and the term comes directly from one clue, copy that clue's URL verbatim; otherwise empty string`
         },
         jp: {
             intro: `あなたはニュース編集者です。今月（ISO週 ${weekKey}）に実際に起きた・進行中の話題のニュースから生まれた最新トレンド語・流行語・バズワードを${count}個取り上げてください。
@@ -559,7 +561,8 @@ function buildHotwordsPrompt(lang, weekKey, count) {
 - "translation": 対応する自然な英語表現（短く）
 - "category": 「テック/ガジェット/時事/AI/ロボット/金融/科学/映画/ドラマ/ライフ」から一つ（日本語）
 - "origin": その語が生まれた具体的な事件・話題を日本語で一文（35字以内）で
-- "source": その事件を報じた権威ある媒体名（例：NHK、日経、朝日新聞、Yonhap、TechCrunch。媒体名のみ、URL不要）`
+- "source": その事件を報じた権威ある媒体名（例：NHK、日経、朝日新聞、Yonhap、TechCrunch。媒体名のみ、URL不要）
+- "newsUrl": 【ニュース手がかり】が提供され、その語が直接ある手がかりから来た場合のみ、その手がかりのURLをそのまま記入。それ以外は空文字`
         }
     };
     const spec = specs[lang] || specs.zh;
@@ -601,8 +604,67 @@ function parseHotwords(text) {
             translation: String(w.translation || '').trim(),
             category: String(w.category || '').trim(),
             origin: String(w.origin || '').trim(),
-            source: String(w.source || '').trim()
+            source: String(w.source || '').trim(),
+            newsUrl: String(w.newsUrl || '').trim()
         }));
+}
+
+// =========================================
+// 4.5 PSE 真实新闻线索（可选）：config.hotwordsSearch 启用后，
+// 生成前先从 Google 可编程搜索引擎抓取本月真实新闻标题注入 Prompt，
+// AI 从真实事件提炼热词并回填 newsUrl（只接受线索列表内的 URL，杜绝编造）
+// =========================================
+const NEWS_SEARCH_TIMEOUT = 8000;
+
+const NEWS_QUERY_TEMPLATES = {
+    zh: ['中国 本周 热点新闻', '美国 科技 AI 新闻', '财经 机器人 科学 新闻', '热播 电视剧 电影 话题', '日本 韩国 热门 新闻'],
+    en: ['US top news this week', 'tech AI robotics gadgets news', 'finance science breaking news', 'trending TV series movies buzz', 'China Japan Korea trending news'],
+    jp: ['日本 週間 熱心 ニュース', '中国 アメリカ トップニュース', 'AI ロボット 金融 科学 ニュース', '話題のドラマ 映画 バズ', '韓国 トレンド ニュース']
+};
+
+function getHotwordsSearchCfg() {
+    const cfg = loadConfig();
+    const hs = cfg.hotwordsSearch || {};
+    const key = resolveKeyValue(hs.key);
+    const cx = resolveKeyValue(hs.cx);
+    if (!hs.enabled || !key || !cx) return null;
+    return { key, cx, dateRestrict: hs.dateRestrict || 'd14', queriesPerLang: Math.min(hs.queriesPerLang || 5, 6) };
+}
+
+async function fetchNewsContext(lang, searchCfg) {
+    const templates = NEWS_QUERY_TEMPLATES[lang] || NEWS_QUERY_TEMPLATES.zh;
+    const queries = templates.slice(0, searchCfg.queriesPerLang);
+    const results = await Promise.allSettled(queries.map(q =>
+        axios.get('https://www.googleapis.com/customsearch/v1', {
+            params: { key: searchCfg.key, cx: searchCfg.cx, q, num: 6, dateRestrict: searchCfg.dateRestrict },
+            timeout: NEWS_SEARCH_TIMEOUT
+        })
+    ));
+    const seen = new Set();
+    const items = [];
+    for (const r of results) {
+        if (r.status !== 'fulfilled' || !r.value.data || !Array.isArray(r.value.data.items)) continue;
+        for (const it of r.value.data.items) {
+            if (!it.link || !it.title || seen.has(it.link)) continue;
+            seen.add(it.link);
+            items.push({ title: it.title, link: it.link, source: it.displayLink || '' });
+        }
+    }
+    return items.slice(0, 24);
+}
+
+function buildNewsBlock(newsItems) {
+    if (!newsItems.length) return '';
+    const lines = newsItems.map((n, i) => `${i + 1}. [${n.source}] ${n.title}\n   URL: ${n.link}`);
+    return `
+
+【本月真实新闻线索（优先从以下线索提炼热词）】
+${lines.join('\n')}
+
+线索使用规则（强制）：
+1. 优先从上述线索提炼热词；某词条若直接来自某条线索，其 "newsUrl" 必须原样填写该线索的 URL，"source" 填方括号内的媒体域名
+2. 线索之外允许少量补充词条，但 "newsUrl" 必须留空字符串
+3. 严禁编造 newsUrl，严禁使用线索列表之外的任何 URL`;
 }
 
 async function generateHotwords(lang, weekKey) {
@@ -611,11 +673,23 @@ async function generateHotwords(lang, weekKey) {
     const config = getModelConfig(hotwordsModelId);
     if (!config || !config.key) throw new Error(`后端缺失热词引擎 (${hotwordsModelId}) 的 API 密钥`);
 
+    // 可选：PSE 真实新闻线索（未配置或检索失败时自动降级为纯 AI 生成）
+    const searchCfg = getHotwordsSearchCfg();
+    let newsItems = [];
+    if (searchCfg) {
+        try {
+            newsItems = await fetchNewsContext(lang, searchCfg);
+            console.log(`PSE 新闻线索: ${newsItems.length} 条`);
+        } catch (e) {
+            console.warn('PSE 检索失败，降级为纯 AI 生成:', e.message);
+        }
+    }
+
     const payload = {
         model: config.model,
         messages: [
             { role: 'system', content: '你是一位敏锐的中日英跨语言热点观察员，擅长追踪全球互联网每周的新词热梗，输出严格遵循要求的 JSON 格式。' },
-            { role: 'user', content: buildHotwordsPrompt(lang, weekKey, HOTWORDS_COUNT + 8) } // 多要8个：模型对长清单常少给
+            { role: 'user', content: buildHotwordsPrompt(lang, weekKey, HOTWORDS_COUNT + 8) + buildNewsBlock(newsItems) } // 多要8个：模型对长清单常少给
         ],
         temperature: 0.8
     };
@@ -633,6 +707,12 @@ async function generateHotwords(lang, weekKey) {
     if (!text || !text.trim()) throw new Error('AI 引擎本次未返回内容（可能思考超时或服务波动）');
     const words = parseHotwords(text);
     if (!words.length) throw new Error('热词解析结果为空');
+
+    // newsUrl 白名单校验：只接受来自真实新闻线索的 URL，其余一律清空（防编造）
+    const allowedUrls = new Set(newsItems.map(n => n.link));
+    for (const w of words) {
+        if (w.newsUrl && !allowedUrls.has(w.newsUrl)) w.newsUrl = '';
+    }
     return words;
 }
 

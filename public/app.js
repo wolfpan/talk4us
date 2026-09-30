@@ -165,6 +165,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             } catch (e) { return false; }
         };
         const newsUrl = (w) => {
+            // 优先使用 PSE 检索到的真实文章链接（服务端已做线索白名单校验）
+            if (w.newsUrl) return w.newsUrl;
             const q = encodeURIComponent(w.term + (w.source ? ' ' + w.source : ''));
             // Bing 国内版无新闻垂直页（/news/search 会 302 回首页），改用主搜索 + 新闻关键词
             return isMainlandChina()
