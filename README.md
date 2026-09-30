@@ -45,7 +45,7 @@ npm install
 
 ### 2. 环境配置
 
-在项目根目录下创建 `.env` 文件。系统依赖 Supabase 进行用户鉴权，并整合阿里云百炼/智谱开放平台作为统一模型网关。
+在项目根目录下创建 `.env` 文件。系统依赖 Supabase 进行用户鉴权：
 
 ```env
 # 端口配置
@@ -54,12 +54,32 @@ PORT=3001
 # Supabase 鉴权配置 (必需)
 SUPABASE_URL=您的_Supabase_Project_URL
 SUPABASE_ANON_KEY=您的_Supabase_Anon_Key
-
-# 模型 API 密钥配置 (按需配置)
-GLM_API_KEY=你的_智谱_API_KEY
-ALI_API_KEY=你的_阿里云百炼_API_KEY
-
 ```
+
+AI 引擎（API 地址 / 密钥 / 模型选择 / 是否需登录）统一在项目根目录的 `config.json` 中管理。首次部署请复制模板：
+
+```bash
+cp config.example.json config.json
+```
+
+```jsonc
+{
+  "defaultModel": "glm",            // 游客默认引擎 & 未匹配时的回退引擎
+  "hotwordsModel": "glm",           // 每周热词生成使用的引擎（缺省用 defaultModel）
+  "models": {
+    "glm": {
+      "name": "GLM 4 Flash",        // 前端下拉框显示名称
+      "url": "https://open.bigmodel.cn/api/paas/v4/chat/completions",
+      "model": "glm-4-flash-250414",
+      "key": "env:GLM_API_KEY",     // 支持 "env:变量名" 引用 .env，或直接写明文密钥
+      "requiresLogin": false,       // 是否登录后才能选用
+      "enabled": true               // false 时不下发到前端
+    }
+  }
+}
+```
+
+> `config.json` 含密钥，已加入 `.gitignore`；修改后**自动热加载**，无需重启服务。
 
 ### 3. 启动服务
 

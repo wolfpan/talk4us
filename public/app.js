@@ -73,18 +73,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         langToggleBtn.textContent = langDisplayMap[lang];
         localStorage.setItem('talk4us_lang', lang);
-
-        // 如果模型下拉框中包含动态提示，需要根据语言刷新
-        updateModelOptionsAuthText(dict);
-    }
-
-    function updateModelOptionsAuthText(dict) {
-        const loginRequiredText = dict.loginRequiredSuffix || (currentLang === 'zh' ? ' (需登录)' : currentLang === 'en' ? ' (Login Req)' : ' (要ログイン)');
-        Array.from(modelSelect.options).forEach(opt => {
-            if (opt.disabled && opt.value !== 'glm') {
-                opt.textContent = opt.textContent.replace(/\s*\(.*\)$/, '') + loginRequiredText;
-            }
-        });
     }
 
     langToggleBtn.addEventListener('click', () => {
@@ -180,6 +168,53 @@ document.addEventListener('DOMContentLoaded', async () => {
     loadHotwords(currentLang);
 
     // =========================================
+    // 2.6 AI 引擎下拉框（列表来自 /api/models，由服务端 config.json 统一配置）
+    // =========================================
+    let modelList = [];
+    let defaultModelId = 'glm';
+    let isLoggedIn = false;
+
+    function renderModelOptions() {
+        if (!modelList.length) return; // 列表加载失败时保留页面内置的静态选项
+        const loginReqStr = (i18nConfig[currentLang] && i18nConfig[currentLang].loginRequiredSuffix) || '';
+        const prevValue = modelSelect.value;
+
+        modelSelect.innerHTML = '';
+        modelList.forEach(m => {
+            const opt = document.createElement('option');
+            opt.value = m.id;
+            const locked = m.requiresLogin && !isLoggedIn;
+            opt.disabled = locked;
+            opt.textContent = m.name + (locked ? loginReqStr : '');
+            modelSelect.appendChild(opt);
+        });
+
+        // 保持用户原选择；若原选择不可用，回退默认引擎，再回退第一个可用引擎
+        const isUsable = m => !(m.requiresLogin && !isLoggedIn);
+        const keep = modelList.find(m => m.id === prevValue && isUsable(m));
+        const preferred = modelList.find(m => m.id === defaultModelId && isUsable(m));
+        const target = keep || preferred || modelList.find(isUsable);
+        if (target) modelSelect.value = target.id;
+    }
+
+    async function loadModels() {
+        try {
+            const res = await fetch('/api/models');
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            modelList = Array.isArray(data.models) ? data.models : [];
+            defaultModelId = data.defaultModel || (modelList[0] && modelList[0].id) || 'glm';
+            renderModelOptions();
+        } catch (err) {
+            console.error('模型列表加载失败，使用页面默认选项:', err);
+        }
+    }
+
+    // 语言切换时同步刷新"(需登录)"后缀文案
+    langToggleBtn.addEventListener('click', () => renderModelOptions());
+    loadModels();
+
+    // =========================================
     // 3. 初始化 Supabase 客户端
     // =========================================
     let supabaseClient;
@@ -239,16 +274,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     // 5. Supabase 状态机驱动
     // =========================================
     supabaseClient.auth.onAuthStateChange((event, session) => {
+        isLoggedIn = !!session;
         if (session) {
             sessionToken = session.access_token;
             maxChars = 500; 
             logoutBtn.style.display = 'flex';
             hideAuthOverlay();
-            
-            Array.from(modelSelect.options).forEach(opt => {
-                opt.disabled = false;
-                opt.textContent = opt.textContent.replace(/\s*\(.*\)$/, '');
-            });
 
             if (triggerLoginBtn) triggerLoginBtn.style.display = 'none';
         } else {
@@ -259,22 +290,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (userInput.value.length > maxChars) {
                 userInput.value = userInput.value.substring(0, maxChars);
             }
-            
-            modelSelect.value = 'glm';
-            
-            const loginReqStr = currentLang === 'zh' ? ' (需登录)' : currentLang === 'en' ? ' (Login Req)' : ' (要ログイン)';
-            Array.from(modelSelect.options).forEach(opt => {
-                if (opt.value !== 'glm') {
-                    opt.disabled = true;
-                    if (!opt.textContent.includes('Req') && !opt.textContent.includes('登录') && !opt.textContent.includes('ログイン')) {
-                        opt.textContent += loginReqStr;
-                    }
-                }
-            });
 
             if (triggerLoginBtn) triggerLoginBtn.style.display = 'inline-block';
         }
         
+        // 登录态变化后重渲染模型下拉框（解锁/锁定需登录引擎）
+        renderModelOptions();
         updateCharCount();
     });
 

@@ -28,25 +28,94 @@ const supabase = createClient(
     process.env.SUPABASE_ANON_KEY
 );
 
-// 模型统一网关配置字典
-const MODEL_CONFIGS = {
-    'glm': {
-        url: 'https://open.bigmodel.cn/api/paas/v4/chat/completions',
-        key: process.env.GLM_API_KEY,
-        model: 'glm-4-flash-250414'
-    },
-    // [暂时不用] 百炼 API Key 失效，已备注
-    // 'qwen': {
-    //     url: 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions',
-    //     key: process.env.ALI_API_KEY,
-    //     model: 'qwen3.8-flash'
-    // },
-    'deepseek': {
-        url: 'https://api.deepseek.com/chat/completions',
-        key: process.env.DS_API_KEY,
-        model: 'deepseek-v4-flash' 
+// =========================================
+// 模型网关配置：统一由 config.json 管理（API 地址 / 密钥 / 模型选择）
+// 缺失时回退到下方内置默认；文件变更自动热加载，无需重启
+// =========================================
+const CONFIG_FILE = path.join(__dirname, 'config.json');
+let cachedConfig = null;
+let cachedConfigMtime = 0;
+
+const FALLBACK_CONFIG = {
+    defaultModel: 'glm',
+    hotwordsModel: 'glm',
+    models: {
+        'glm': {
+            name: 'GLM 4 Flash',
+            url: 'https://open.bigmodel.cn/api/paas/v4/chat/completions',
+            model: 'glm-4-flash-250414',
+            key: 'env:GLM_API_KEY',
+            requiresLogin: false,
+            enabled: true
+        },
+        'deepseek': {
+            name: 'DeepSeek V4 flash',
+            url: 'https://api.deepseek.com/chat/completions',
+            model: 'deepseek-v4-flash',
+            key: 'env:DS_API_KEY',
+            requiresLogin: true,
+            enabled: true
+        }
     }
 };
+
+function resolveKeyValue(keyVal) {
+    // 支持 "env:VAR_NAME" 形式引用 .env 中的环境变量，也可直接写明文密钥
+    if (typeof keyVal === 'string' && keyVal.startsWith('env:')) {
+        return process.env[keyVal.slice(4)] || '';
+    }
+    return keyVal || '';
+}
+
+function normalizeModel(id, raw, defaultModelId) {
+    return {
+        id,
+        name: (raw && raw.name) || id,
+        url: raw && raw.url,
+        model: raw && raw.model,
+        key: resolveKeyValue(raw && raw.key),
+        requiresLogin: raw && raw.requiresLogin !== undefined ? raw.requiresLogin !== false : id !== defaultModelId,
+        enabled: !raw || raw.enabled !== false
+    };
+}
+
+function loadConfig() {
+    try {
+        const stat = fs.statSync(CONFIG_FILE);
+        if (cachedConfig && stat.mtimeMs === cachedConfigMtime) return cachedConfig;
+        const raw = JSON.parse(fs.readFileSync(CONFIG_FILE, 'utf8'));
+        if (!raw || typeof raw !== 'object' || !raw.models || typeof raw.models !== 'object' || !Object.keys(raw.models).length) {
+            throw new Error('config.json 缺少有效的 models 配置');
+        }
+        cachedConfig = raw;
+        cachedConfigMtime = stat.mtimeMs;
+        console.log(`config.json 已加载（默认引擎: ${raw.defaultModel}）`);
+        return cachedConfig;
+    } catch (e) {
+        if (e.code !== 'ENOENT') {
+            // 文件存在但损坏/不合法时告警并回退，保证服务可用
+            if (cachedConfig !== FALLBACK_CONFIG) {
+                console.warn('config.json 加载失败，回退内置默认模型配置:', e.message);
+            }
+        }
+        cachedConfig = FALLBACK_CONFIG;
+        cachedConfigMtime = 0;
+        return cachedConfig;
+    }
+}
+
+function getModelConfig(id) {
+    const cfg = loadConfig();
+    if (!id || !cfg.models[id]) return null;
+    return normalizeModel(id, cfg.models[id], cfg.defaultModel);
+}
+
+function listEnabledModels() {
+    const cfg = loadConfig();
+    return Object.keys(cfg.models)
+        .map(id => normalizeModel(id, cfg.models[id], cfg.defaultModel))
+        .filter(m => m.enabled && m.url);
+}
 
 // =========================================
 // 1. 前置鉴权中间件
@@ -114,11 +183,12 @@ app.post('/api/enhance', checkAuth, enhanceRateLimiter, async (req, res) => {
         });
     }
 
-    // 后端兜底收敛：确保即使前端被绕过，非登录用户的模型仍会降级为 glm
-    const finalModel = user ? modelChoice : 'glm';
-    const config = MODEL_CONFIGS[finalModel] || MODEL_CONFIGS['glm'];
+    // 后端兜底收敛：确保即使前端被绕过，非登录用户的模型仍会降级为默认引擎
+    const defaultModelId = loadConfig().defaultModel;
+    const finalModel = user ? modelChoice : defaultModelId;
+    const config = getModelConfig(finalModel) || getModelConfig(defaultModelId);
     
-    if (!config.key) {
+    if (!config || !config.key) {
         return res.status(500).json({ error: `后端缺失 ${finalModel} 的 API 密钥` });
     }
 
@@ -413,8 +483,10 @@ function parseHotwords(text) {
 }
 
 async function generateHotwords(lang, weekKey) {
-    const config = MODEL_CONFIGS['glm'];
-    if (!config.key) throw new Error('后端缺失 GLM 的 API 密钥');
+    const cfg = loadConfig();
+    const hotwordsModelId = cfg.hotwordsModel || cfg.defaultModel;
+    const config = getModelConfig(hotwordsModelId);
+    if (!config || !config.key) throw new Error(`后端缺失热词引擎 (${hotwordsModelId}) 的 API 密钥`);
 
     const payload = {
         model: config.model,
@@ -465,6 +537,19 @@ const hotwordsRateLimiter = rateLimit({
     handler: (req, res) => {
         res.status(429).json({ error: '请求过于频繁：热词查询每分钟最多 20 次，请稍后再试。' });
     }
+});
+
+// 模型列表接口：供前端下拉框动态渲染（不含任何密钥信息）
+app.get('/api/models', (req, res) => {
+    const cfg = loadConfig();
+    res.json({
+        defaultModel: cfg.defaultModel,
+        models: listEnabledModels().map(m => ({
+            id: m.id,
+            name: m.name,
+            requiresLogin: m.requiresLogin
+        }))
+    });
 });
 
 app.get('/api/hotwords', hotwordsRateLimiter, async (req, res) => {
