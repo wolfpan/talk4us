@@ -1011,20 +1011,15 @@ select option:disabled {
     line-height: 1.55;
 }
 
-/* 新闻出处链接 */
+/* 新闻出处链接：内联在说明文字之后 */
 .hotword-source {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    margin-top: auto;
-    padding-top: 0.35rem;
     font-family: var(--font-mono);
     font-size: 0.7rem;
     font-weight: 600;
     color: var(--accent);
     text-decoration: none;
     letter-spacing: 0.3px;
-    border-top: 1px dashed var(--border);
+    white-space: nowrap;
     transition: color 0.2s ease;
 }
 

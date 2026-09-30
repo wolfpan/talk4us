@@ -181,8 +181,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 </div>
                 <div class="hotword-term">${escapeHtml(w.term)}</div>
                 <div class="hotword-translation">${escapeHtml(w.translation)}</div>
-                <p class="hotword-origin">${escapeHtml(w.origin)}</p>
-                <a class="hotword-source" href="${newsUrl(w)}" target="_blank" rel="noopener noreferrer"${w.source ? ` title="${escapeHtml(w.source)}"` : ''}>link ↗</a>
+                <p class="hotword-origin">${escapeHtml(w.origin)} <a class="hotword-source" href="${newsUrl(w)}" target="_blank" rel="noopener noreferrer"${w.source ? ` title="${escapeHtml(w.source)}"` : ''}>link ↗</a></p>
             </article>
         `).join('');
     }
