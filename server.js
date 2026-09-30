@@ -656,7 +656,7 @@ function getHotwordsExtras(lang) {
 // 词条规范化：去除书名号/引号/空格等装饰后小写比较，用于识别
 // 《XX》与 XX、《XX》韩版与 XX韩版 这类仅装饰差异的重复词
 function normalizeTerm(t) {
-    return String(t).toLowerCase().replace(/[《》【】\[\]""''「」\s·・：:，,-—_]/g, '');
+    return String(t).toLowerCase().replace(/[《》【】\[\]""''「」\s·・：:，,—_-]/g, '');
 }
 
 function dedupeWords(words) {

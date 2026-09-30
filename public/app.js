@@ -101,7 +101,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // 词条规范化键：与后端 dedupe 规则一致，变体词（书名号/空格差异）也算重复
     function normalizeTerm(t) {
-        return String(t).toLowerCase().replace(/[《》【】\[\]""''「」\s·・：:，,-—_]/g, '');
+        return String(t).toLowerCase().replace(/[《》【】\[\]""''「」\s·・：:，,—_-]/g, '');
     }
 
     // 从周词库随机抽取一组展示词：优先抽未展示过的，保证每次访问全部不同；
