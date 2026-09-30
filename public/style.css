@@ -1013,19 +1013,20 @@ select option:disabled {
 
 /* 新闻出处链接：内联在说明文字之后 */
 .hotword-source {
+    margin-left: 0.35rem;
     font-family: var(--font-mono);
     font-size: 0.7rem;
     font-weight: 600;
-    color: var(--accent);
-    text-decoration: none;
+    color: var(--text-muted);
+    text-decoration: underline dashed;
+    text-underline-offset: 3px;
     letter-spacing: 0.3px;
     white-space: nowrap;
     transition: color 0.2s ease;
 }
 
 .hotword-source:hover {
-    color: var(--accent-strong);
-    text-decoration: underline;
+    color: var(--accent);
 }
 
 /* 加载骨架屏 */
