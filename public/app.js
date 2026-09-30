@@ -141,12 +141,18 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     function renderHotwords(words, lang, week) {
         const picked = pickRandomWords(words, lang, week);
-        // 新闻出处链接：由热词+来源构造权威新闻搜索（中文走百度新闻，英/日走 Google News），
-        // 避免直接采用 AI 生成的 URL（存在编造假链风险）
+        // 新闻出处链接：由热词+来源构造新闻搜索，避免直接采用 AI 生成的 URL（存在编造假链风险）
+        // 按用户所在网络分流（以浏览器时区近似判断）：国内 → Bing 国内版，海外 → Google News
+        const isMainlandChina = () => {
+            try {
+                const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+                return tz === 'Asia/Shanghai' || tz === 'Asia/Urumqi' || tz === 'Asia/Chongqing';
+            } catch (e) { return false; }
+        };
         const newsUrl = (w) => {
             const q = encodeURIComponent(w.term + (w.source ? ' ' + w.source : ''));
-            return lang === 'zh'
-                ? `https://www.baidu.com/s?tn=news&word=${q}`
+            return isMainlandChina()
+                ? `https://cn.bing.com/news/search?q=${q}`
                 : `https://news.google.com/search?q=${q}`;
         };
         hotwordsGrid.innerHTML = picked.map(w => `
