@@ -94,7 +94,36 @@ document.addEventListener('DOMContentLoaded', async () => {
     const hotwordsRefresh = document.getElementById('hotwordsRefresh');
 
     const hotwordsDirMap = { zh: '中 → EN', jp: '日 → EN', en: 'EN → 中' };
+    const HOTWORDS_DISPLAY = 8;          // 每次展示数量
+    const HOTWORDS_SHOWN_KEY = 'talk4us_hotwords_shown';
     let activeHotwordsLang = null;
+
+    // 从周词库随机抽取一组展示词：优先抽未展示过的，保证每次访问全部不同；
+    // 剩余不足时重置该语言的记录重新开始（记录按语言独立、按周失效）
+    function pickRandomWords(words, lang, week) {
+        let store = {};
+        try { store = JSON.parse(localStorage.getItem(HOTWORDS_SHOWN_KEY)) || {}; } catch (e) { /* 损坏则视为无记录 */ }
+        if (store.week !== week || !Array.isArray(store[lang])) {
+            store = { week, [lang]: [] };
+        }
+        const shown = new Set(store[lang]);
+        let pool = words.filter(w => !shown.has(w.term));
+        if (pool.length < HOTWORDS_DISPLAY) {
+            shown.clear();
+            pool = words.slice();
+        }
+
+        // Fisher-Yates 洗牌后取前 N 个
+        for (let i = pool.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [pool[i], pool[j]] = [pool[j], pool[i]];
+        }
+        const picked = pool.slice(0, HOTWORDS_DISPLAY);
+        picked.forEach(w => shown.add(w.term));
+        store[lang] = Array.from(shown);
+        try { localStorage.setItem(HOTWORDS_SHOWN_KEY, JSON.stringify(store)); } catch (e) { /* 存储满时静默 */ }
+        return picked;
+    }
 
     function escapeHtml(str) {
         return String(str)
@@ -109,8 +138,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         hotwordsGrid.innerHTML = Array.from({ length: count }, () => '<div class="hotword-skeleton"></div>').join('');
     }
 
-    function renderHotwords(words) {
-        hotwordsGrid.innerHTML = words.map(w => `
+    function renderHotwords(words, lang, week) {
+        const picked = pickRandomWords(words, lang, week);
+        hotwordsGrid.innerHTML = picked.map(w => `
             <article class="hotword-card">
                 <div class="hotword-top">
                     <span class="hotword-cat">${escapeHtml(w.category)}</span>
@@ -145,7 +175,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (activeHotwordsLang !== lang) return; // 期间语言已切换，丢弃过期结果
             const words = Array.isArray(data.words) ? data.words : [];
             if (!words.length) throw new Error('热词为空');
-            renderHotwords(words);
+            renderHotwords(words, lang, data.week || '');
         } catch (err) {
             console.error('热词加载失败:', err);
             if (activeHotwordsLang === lang) renderHotwordsError();
