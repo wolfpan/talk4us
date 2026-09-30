@@ -162,7 +162,11 @@ function normalizeModel(id, raw, defaultModelId) {
         model: raw && raw.model,
         key: resolveKeyValue(raw && raw.key),
         requiresLogin: raw && raw.requiresLogin !== undefined ? raw.requiresLogin !== false : id !== defaultModelId,
-        enabled: !raw || raw.enabled !== false
+        enabled: !raw || raw.enabled !== false,
+        // hidden: 仅内部使用（如热词引擎），不下发到前端模型列表
+        hidden: !!(raw && raw.hidden),
+        // api: 'gemini' 走 Google 原生 generateContent（支持 google_search 接地），缺省 OpenAI 兼容协议
+        api: (raw && raw.api) || 'openai'
     };
 }
 
@@ -201,7 +205,7 @@ function listEnabledModels() {
     const cfg = loadConfig();
     return Object.keys(cfg.models)
         .map(id => normalizeModel(id, cfg.models[id], cfg.defaultModel))
-        .filter(m => m.enabled && m.url);
+        .filter(m => m.enabled && m.url && !m.hidden);
 }
 
 // =========================================
@@ -273,8 +277,13 @@ app.post('/api/enhance', checkAuth, enhanceRateLimiter, async (req, res) => {
     // 后端兜底收敛：确保即使前端被绕过，非登录用户的模型仍会降级为默认引擎
     const defaultModelId = loadConfig().defaultModel;
     const finalModel = user ? modelChoice : defaultModelId;
-    const config = getModelConfig(finalModel) || getModelConfig(defaultModelId);
-    
+    let config = getModelConfig(finalModel) || getModelConfig(defaultModelId);
+
+    // gemini 引擎仅用于内部热词生成（原生 API 含搜索接地），不对外提供重构服务
+    if (config && config.api === 'gemini') {
+        config = getModelConfig(defaultModelId);
+    }
+
     if (!config || !config.key) {
         return res.status(500).json({ error: `后端缺失 ${finalModel} 的 API 密钥` });
     }
@@ -525,7 +534,7 @@ function buildHotwordsPrompt(lang, weekKey, count) {
 - "translation": 对应的地道英文表达（简短）
 - "category": 所属领域，中文，从「科技/数码/时事/AI/机器人/财经/科学/电影/电视剧/生活」中选择
 - "origin": 用一句中文（35字以内）点明该词对应的具体热点事件或来源
-- "source": 报道该事件的权威来源机构名（如：新华网、人民网、36氪、澎湃、TechCrunch、The Verge、NHK、日经、韩联社等，只写机构名不要URL）
+- "source": 报道该事件的媒体网站域名（如 xinhuanet.com、36kr.com、techcrunch.com、nhk.or.jp，不带 https:// 前缀）
 - "newsUrl": 仅当提供了【新闻线索】且词条直接来自某条线索时，原样填写该线索 URL；否则留空字符串`
         },
         en: {
@@ -543,7 +552,7 @@ function buildHotwordsPrompt(lang, weekKey, count) {
 - "translation": its natural Chinese equivalent (short)
 - "category": one of Tech/Gadgets/News/AI/Robotics/Finance/Science/Movies/TV Drama/Lifestyle (in English)
 - "origin": one English sentence (max 22 words) naming the specific event it comes from
-- "source": the authoritative outlet covering it (e.g. TechCrunch, The Verge, Reuters, NHK, Yonhap; name only, no URL)
+- "source": the covering outlet's site domain (e.g. techcrunch.com, reuters.com, nhk.or.jp; no https:// prefix)
 - "newsUrl": only when [NEWS CLUES] are provided and the term comes directly from one clue, copy that clue's URL verbatim; otherwise empty string`
         },
         jp: {
@@ -561,7 +570,7 @@ function buildHotwordsPrompt(lang, weekKey, count) {
 - "translation": 対応する自然な英語表現（短く）
 - "category": 「テック/ガジェット/時事/AI/ロボット/金融/科学/映画/ドラマ/ライフ」から一つ（日本語）
 - "origin": その語が生まれた具体的な事件・話題を日本語で一文（35字以内）で
-- "source": その事件を報じた権威ある媒体名（例：NHK、日経、朝日新聞、Yonhap、TechCrunch。媒体名のみ、URL不要）
+- "source": 報道元メディアのドメイン（例：nhk.or.jp、nikkei.com、techcrunch.com。https:// プレフィックスなし）
 - "newsUrl": 【ニュース手がかり】が提供され、その語が直接ある手がかりから来た場合のみ、その手がかりのURLをそのまま記入。それ以外は空文字`
         }
     };
@@ -667,11 +676,51 @@ ${lines.join('\n')}
 3. 严禁编造 newsUrl，严禁使用线索列表之外的任何 URL`;
 }
 
+// Gemini 原生 generateContent：google_search 接地让模型基于真实 Google 搜索结果生成，
+// groundingChunks 携带真实来源 URL（term → newsUrl 回链的数据源）
+async function callGeminiHotwords(config, prompt) {
+    const url = `${(config.url || 'https://generativelanguage.googleapis.com/v1beta').replace(/\/+$/, '')}/models/${config.model}:generateContent`;
+    const response = await axios.post(url, {
+        contents: [{ role: 'user', parts: [{ text: prompt }] }],
+        tools: [{ google_search: {} }],
+        generationConfig: { temperature: 0.8 }
+    }, {
+        headers: { 'Content-Type': 'application/json', 'x-goog-api-key': config.key },
+        timeout: 150000
+    });
+    const cand = response.data.candidates && response.data.candidates[0];
+    const parts = (cand && cand.content && cand.content.parts) || [];
+    const text = parts.map(p => p.text || '').join('');
+    const webChunks = ((cand && cand.groundingMetadata && cand.groundingMetadata.groundingChunks) || [])
+        .map(c => c.web).filter(Boolean).map(w => ({ uri: w.uri || '', title: w.title || '', domain: w.domain || '' }));
+    return { text, webChunks };
+}
+
+// 从接地来源中匹配词条的真实 URL：按 source 域名包含关系匹配
+function attachGroundingUrls(words, webChunks) {
+    if (!webChunks.length) return;
+    const normDomain = (s) => String(s || '').toLowerCase().replace(/^www\./, '').replace(/\/.*$/, '');
+    for (const w of words) {
+        const src = normDomain(w.source);
+        if (!src) continue;
+        const hit = webChunks.find(c => {
+            const d = normDomain(c.domain || (c.uri || '').replace(/^https?:\/\//, ''));
+            return d && (d === src || d.endsWith('.' + src) || src.endsWith('.' + d));
+        });
+        if (hit && hit.uri) w.newsUrl = hit.uri;
+    }
+}
+
 async function generateHotwords(lang, weekKey) {
     const cfg = loadConfig();
     const hotwordsModelId = cfg.hotwordsModel || cfg.defaultModel;
-    const config = getModelConfig(hotwordsModelId);
-    if (!config || !config.key) throw new Error(`后端缺失热词引擎 (${hotwordsModelId}) 的 API 密钥`);
+    let config = getModelConfig(hotwordsModelId);
+
+    const useGemini = config && config.api === 'gemini';
+    if (useGemini && (!config.key)) {
+        console.warn(`热词引擎 (${hotwordsModelId}) 未配置密钥，回退默认引擎`);
+        config = getModelConfig(cfg.defaultModel);
+    }
 
     // 可选：PSE 真实新闻线索（未配置或检索失败时自动降级为纯 AI 生成）
     const searchCfg = getHotwordsSearchCfg();
@@ -685,34 +734,72 @@ async function generateHotwords(lang, weekKey) {
         }
     }
 
-    const payload = {
-        model: config.model,
-        messages: [
-            { role: 'system', content: '你是一位敏锐的中日英跨语言热点观察员，擅长追踪全球互联网每周的新词热梗，输出严格遵循要求的 JSON 格式。' },
-            { role: 'user', content: buildHotwordsPrompt(lang, weekKey, HOTWORDS_COUNT + 8) + buildNewsBlock(newsItems) } // 多要8个：模型对长清单常少给
-        ],
-        temperature: 0.8
-    };
+    const prompt = buildHotwordsPrompt(lang, weekKey, HOTWORDS_COUNT + 8) + buildNewsBlock(newsItems); // 多要8个：模型对长清单常少给
 
-    const response = await axios.post(config.url, payload, {
-        headers: {
-            'Authorization': `Bearer ${config.key}`,
-            'Content-Type': 'application/json'
-        },
-        timeout: 150000
-    });
+    let text = '';
+    let webChunks = [];
+    try {
+        if (useGemini && config.api === 'gemini') {
+            const r = await callGeminiHotwords(config, prompt);
+            text = r.text;
+            webChunks = r.webChunks;
+            console.log(`Gemini 接地来源: ${webChunks.length} 条`);
+        } else {
+            const payload = {
+                model: config.model,
+                messages: [
+                    { role: 'system', content: '你是一位敏锐的中日英跨语言热点观察员，擅长追踪全球互联网每周的新词热梗，输出严格遵循要求的 JSON 格式。' },
+                    { role: 'user', content: prompt }
+                ],
+                temperature: 0.8
+            };
+            const response = await axios.post(config.url, payload, {
+                headers: {
+                    'Authorization': `Bearer ${config.key}`,
+                    'Content-Type': 'application/json'
+                },
+                timeout: 150000
+            });
+            text = response.data.choices[0].message.content;
+        }
+    } catch (e) {
+        // Gemini 调用失败时回退默认引擎重试一次，保证热词服务不中断
+        if (useGemini) {
+            const fb = getModelConfig(cfg.defaultModel);
+            if (fb && fb.key) {
+                console.warn(`热词引擎 (${hotwordsModelId}) 调用失败，回退默认引擎:`, e.response ? JSON.stringify(e.response.data).slice(0, 200) : e.message);
+                const payload = {
+                    model: fb.model,
+                    messages: [
+                        { role: 'system', content: '你是一位敏锐的中日英跨语言热点观察员，擅长追踪全球互联网每周的新词热梗，输出严格遵循要求的 JSON 格式。' },
+                        { role: 'user', content: prompt }
+                    ],
+                    temperature: 0.8
+                };
+                const response = await axios.post(fb.url, payload, {
+                    headers: { 'Authorization': `Bearer ${fb.key}`, 'Content-Type': 'application/json' },
+                    timeout: 150000
+                });
+                text = response.data.choices[0].message.content;
+            } else {
+                throw e;
+            }
+        } else {
+            throw e;
+        }
+    }
 
-    const text = response.data.choices[0].message.content;
     // 空值防护：content 为 null 时给出明确原因而非解析异常
     if (!text || !text.trim()) throw new Error('AI 引擎本次未返回内容（可能思考超时或服务波动）');
     const words = parseHotwords(text);
     if (!words.length) throw new Error('热词解析结果为空');
 
-    // newsUrl 白名单校验：只接受来自真实新闻线索的 URL，其余一律清空（防编造）
+    // newsUrl 白名单校验：PSE 线索 URL 原样可信；Gemini 接地 URL 按来源域名匹配回链
     const allowedUrls = new Set(newsItems.map(n => n.link));
     for (const w of words) {
         if (w.newsUrl && !allowedUrls.has(w.newsUrl)) w.newsUrl = '';
     }
+    attachGroundingUrls(words, webChunks);
     return words;
 }
 
