@@ -177,7 +177,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             <article class="hotword-card">
                 <div class="hotword-top">
                     <span class="hotword-cat">${escapeHtml(w.category)}</span>
-                    <span class="hotword-dir">${hotwordsDirMap[activeHotwordsLang] || ''}</span>
                 </div>
                 <div class="hotword-term">${escapeHtml(w.term)}</div>
                 <div class="hotword-translation">${escapeHtml(w.translation)}</div>

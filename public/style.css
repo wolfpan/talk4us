@@ -978,14 +978,6 @@ select option:disabled {
     text-overflow: ellipsis;
 }
 
-.hotword-dir {
-    font-family: var(--font-mono);
-    font-size: 0.64rem;
-    color: var(--text-muted);
-    letter-spacing: 0.5px;
-    white-space: nowrap;
-}
-
 .hotword-term {
     font-size: 1.15rem;
     font-weight: 700;
