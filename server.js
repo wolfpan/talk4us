@@ -466,7 +466,7 @@ ${jsonFormatInstruction}`;
 // 4. 每周热词接口（AI 自动检索当周热点词汇，按自然周缓存）
 // =========================================
 const HOTWORDS_CACHE_FILE = path.join(__dirname, '.hotwords-cache.json');
-const HOTWORDS_COUNT = 32; // 每语言周词库容量（前端每次随机抽取其中 8 个展示）
+const HOTWORDS_COUNT = 50; // 每语言周词库容量（前端每次随机抽取其中 8 个展示）
 const hotwordsMemCache = new Map();   // key: `${lang}@${isoWeek}` -> words[]
 const hotwordsInflight = new Map();   // 同周同语言的并发请求去重，避免重复消耗 AI 额度
 
@@ -519,10 +519,10 @@ function buildHotwordsPrompt(lang, weekKey, count) {
 
 【地域要求】主要覆盖中国、美国、日本、韩国四地的热点，大致均衡（侧重中国与美国）。
 
-【领域要求】科技、数码、时事、游戏、电影、生活、文化等领域尽量分散。`,
+【领域要求】科技、数码、时事、游戏、电影、电视剧、生活、文化等领域尽量分散；热播电视剧（如近期上线的国产剧、韩剧、日剧、美剧）的剧名及衍生热词单独计入「电视剧」类。`,
             fields: `- "term": 热词原文（中文热词用中文；美/日/韩源热词可用原文或其通行的中文译名）
 - "translation": 对应的地道英文表达（简短）
-- "category": 所属领域，中文，从「科技/数码/时事/游戏/电影/生活/文化」中选择
+- "category": 所属领域，中文，从「科技/数码/时事/游戏/电影/电视剧/生活/文化」中选择
 - "origin": 用一句中文（35字以内）点明该词对应的具体热点事件或来源
 - "source": 报道该事件的权威来源机构名（如：新华网、人民网、36氪、澎湃、TechCrunch、The Verge、NHK、日经、韩联社等，只写机构名不要URL）`
         },
@@ -535,10 +535,10 @@ function buildHotwordsPrompt(lang, weekKey, count) {
 
 [REGIONS] Focus on the United States and China, plus Japan and South Korea, roughly balanced.
 
-[CATEGORIES] Spread across Tech, Gadgets, News, Gaming, Movies, Lifestyle, Culture.`,
+[CATEGORIES] Spread across Tech, Gadgets, News, Gaming, Movies, TV Drama, Lifestyle, Culture; trending TV series titles and their memes go under TV Drama.`,
             fields: `- "term": the trending term (US terms in English; CN/JP/KR terms in romanized or original form)
 - "translation": its natural Chinese equivalent (short)
-- "category": one of Tech/Gadgets/News/Gaming/Movies/Lifestyle/Culture (in English)
+- "category": one of Tech/Gadgets/News/Gaming/Movies/TV Drama/Lifestyle/Culture (in English)
 - "origin": one English sentence (max 22 words) naming the specific event it comes from
 - "source": the authoritative outlet covering it (e.g. TechCrunch, The Verge, Reuters, NHK, Yonhap; name only, no URL)`
         },
@@ -551,10 +551,10 @@ function buildHotwordsPrompt(lang, weekKey, count) {
 
 【地域】日本と韓国を中心に、中国・アメリカの話題もバランスよく含める。
 
-【分野】テック、ガジェット、時事、ゲーム、映画、ライフ、カルチャーに分散。`,
+【分野】テック、ガジェット、時事、ゲーム、映画、ドラマ、ライフ、カルチャーに分散。話題のドラマ（中国ドラマ・韓ドラ・日ドラ・米ドラ）のタイトルと派生語は「ドラマ」に入れる。`,
             fields: `- "term": トレンドワード（日本の語は日本語；中・米・韓の語は原語または通用する日本語表記）
 - "translation": 対応する自然な英語表現（短く）
-- "category": 「テック/ガジェット/時事/ゲーム/映画/ライフ/カルチャー」から一つ（日本語）
+- "category": 「テック/ガジェット/時事/ゲーム/映画/ドラマ/ライフ/カルチャー」から一つ（日本語）
 - "origin": その語が生まれた具体的な事件・話題を日本語で一文（35字以内）で
 - "source": その事件を報じた権威ある媒体名（例：NHK、日経、朝日新聞、Yonhap、TechCrunch。媒体名のみ、URL不要）`
         }
@@ -622,7 +622,7 @@ async function generateHotwords(lang, weekKey) {
             'Authorization': `Bearer ${config.key}`,
             'Content-Type': 'application/json'
         },
-        timeout: 90000
+        timeout: 150000
     });
 
     const text = response.data.choices[0].message.content;

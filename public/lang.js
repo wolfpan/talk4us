@@ -57,7 +57,7 @@ const i18nConfig = {
 
         // --- 每周热词 ---
         hotwordsTitle: "本周热词",
-        hotwordsSub: "AI 每周自动检索 · 科技 / 数码 / 时事 / 游戏 / 电影 / 生活 / 文化",
+        hotwordsSub: "AI 每周自动检索 · 科技 / 数码 / 时事 / 游戏 / 电影 / 电视剧 / 生活 / 文化",
         hotwordsLoading: "AI 正在检索本周热词...",
         hotwordsError: "热词加载失败，点击重试",
         hotwordsRefresh: "刷新热词"
@@ -119,7 +119,7 @@ const i18nConfig = {
 
         // --- 每周热词 ---
         hotwordsTitle: "Weekly Hot Terms",
-        hotwordsSub: "AI-curated every week · Tech / Gadgets / News / Gaming / Movies / Lifestyle / Culture",
+        hotwordsSub: "AI-curated every week · Tech / Gadgets / News / Gaming / Movies / TV Drama / Lifestyle / Culture",
         hotwordsLoading: "AI is curating this week's terms...",
         hotwordsError: "Failed to load terms. Click to retry",
         hotwordsRefresh: "Refresh terms"
@@ -180,7 +180,7 @@ const i18nConfig = {
 
         // --- 每周热词 ---
         hotwordsTitle: "今週のトレンドワード",
-        hotwordsSub: "AIが毎週自動更新 · テック / ガジェット / 時事 / ゲーム / 映画 / ライフ / カルチャー",
+        hotwordsSub: "AIが毎週自動更新 · テック / ガジェット / 時事 / ゲーム / 映画 / ドラマ / ライフ / カルチャー",
         hotwordsLoading: "AIが今週のワードを検索中...",
         hotwordsError: "読み込みに失敗しました。クリックで再試行",
         hotwordsRefresh: "ワードを更新"
