@@ -612,7 +612,7 @@ async function generateHotwords(lang, weekKey) {
         model: config.model,
         messages: [
             { role: 'system', content: '你是一位敏锐的中日英跨语言热点观察员，擅长追踪全球互联网每周的新词热梗，输出严格遵循要求的 JSON 格式。' },
-            { role: 'user', content: buildHotwordsPrompt(lang, weekKey, HOTWORDS_COUNT + 2) } // 多要2个：AI 常少给
+            { role: 'user', content: buildHotwordsPrompt(lang, weekKey, HOTWORDS_COUNT + 8) } // 多要8个：模型对长清单常少给
         ],
         temperature: 0.8
     };
