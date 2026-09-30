@@ -134,8 +134,8 @@ body {
     align-items: center;
     min-height: 100vh;
     line-height: 1.6;
-    padding: 1.5rem 2rem 2.5rem;
-    gap: 1.25rem;
+    padding: 2.75rem 2rem 3rem;
+    gap: 1.5rem;
     transition: background-color 0.35s ease, color 0.35s ease;
 }
 
@@ -236,7 +236,7 @@ body::before {
 }
 
 .window-header {
-    height: 48px;
+    height: 40px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -251,7 +251,7 @@ body::before {
     align-items: center;
     gap: 8px;
     font-family: var(--font-mono);
-    font-size: 0.78rem;
+    font-size: 0.72rem;
     font-weight: 600;
     letter-spacing: 1.5px;
     color: var(--text-secondary);
@@ -288,7 +288,7 @@ body::before {
 .workspace {
     display: flex;
     position: relative;
-    min-height: 420px;
+    min-height: 350px;
 }
 
 .panel {
@@ -298,12 +298,12 @@ body::before {
 }
 
 .left-panel {
-    padding: 1.75rem 4rem 1.75rem 2rem;
+    padding: 1.25rem 3.25rem 1.25rem 1.75rem;
     border-right: 1px solid var(--border);
 }
 
 .right-panel {
-    padding: 1.75rem 2rem 1.75rem 4rem;
+    padding: 1.25rem 1.75rem 1.25rem 3.25rem;
 }
 
 .panel-header {
@@ -311,7 +311,7 @@ body::before {
     font-size: 0.72rem;
     letter-spacing: 1.5px;
     font-weight: 600;
-    margin-bottom: 1.5rem;
+    margin-bottom: 1rem;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -390,11 +390,11 @@ textarea {
     background-color: transparent;
     border: none;
     color: var(--text);
-    font-size: 1.2rem;
+    font-size: 1.1rem;
     line-height: 1.6;
     resize: none;
     outline: none;
-    margin-bottom: 1rem;
+    margin-bottom: 0.75rem;
     transition: color 0.35s ease;
 }
 
@@ -407,12 +407,12 @@ textarea::placeholder {
     display: flex;
     flex-direction: column;
     flex: 1;
-    margin-bottom: 1rem;
+    margin-bottom: 0.75rem;
 }
 
 .suggestion-text {
-    font-size: 1.25rem;
-    margin-bottom: 1.25rem;
+    font-size: 1.15rem;
+    margin-bottom: 1rem;
     white-space: pre-wrap;
     flex: 1;
     background: linear-gradient(120deg, var(--accent), var(--accent-2));
@@ -431,9 +431,9 @@ textarea::placeholder {
 .rationale-box {
     background: var(--surface-2);
     border: 1px solid var(--border);
-    padding: 1rem 1.2rem;
+    padding: 0.75rem 1rem;
     border-radius: 10px;
-    font-size: 0.85rem;
+    font-size: 0.82rem;
     color: var(--text-secondary);
     display: flex;
     align-items: flex-start;
@@ -475,7 +475,7 @@ textarea::placeholder {
    面板底栏与选择器
    ========================================= */
 .panel-footer {
-    padding-top: 1.25rem;
+    padding-top: 1rem;
     border-top: 1px solid var(--border);
     display: flex;
     justify-content: center;
@@ -540,10 +540,10 @@ select option:disabled {
     transform: translate(-50%, -50%);
     z-index: 10;
 
-    width: 90px;
-    height: 90px;
-    padding: 8px;
-    border-radius: 14px;
+    width: 64px;
+    height: 64px;
+    padding: 6px;
+    border-radius: 12px;
 
     background: linear-gradient(135deg, var(--accent), var(--accent-2));
     border: none;
@@ -556,27 +556,28 @@ select option:disabled {
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    gap: 6px;
+    gap: 3px;
     text-align: center;
 
-    font-size: 0.95rem;
+    font-size: 0.8rem;
     font-weight: 600;
     letter-spacing: 1px;
-    box-shadow: 0 8px 28px var(--glow), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+    box-shadow: 0 6px 20px var(--glow), inset 0 1px 0 rgba(255, 255, 255, 0.25);
 }
 
 #submitBtn .shortcut {
     font-weight: 500;
-    font-size: 0.62rem;
+    font-size: 0.55rem;
     opacity: 0.75;
     color: rgba(255, 255, 255, 0.9);
     letter-spacing: 0;
-    line-height: 1.2;
+    line-height: 1.25;
+    max-width: 56px;
 }
 
 #submitBtn:hover {
     transform: translate(-50%, -50%) translateY(-2px);
-    box-shadow: 0 12px 36px var(--glow), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    box-shadow: 0 10px 26px var(--glow), inset 0 1px 0 rgba(255, 255, 255, 0.3);
     filter: brightness(1.06);
 }
 
@@ -599,8 +600,8 @@ select option:disabled {
 }
 
 .spinner {
-    width: 24px;
-    height: 24px;
+    width: 18px;
+    height: 18px;
     border: 2px solid rgba(255, 255, 255, 0.3);
     border-top-color: #ffffff;
     border-radius: 50%;
@@ -615,7 +616,7 @@ select option:disabled {
    窗口底栏
    ========================================= */
 .window-footer {
-    height: 56px;
+    height: 46px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -833,12 +834,12 @@ select option:disabled {
     background-color: transparent;
     border: none;
     color: var(--text);
-    font-size: 1.2rem;
+    font-size: 1.1rem;
     line-height: 1.6;
     resize: none;
     outline: none;
     margin-bottom: 0;
-    padding-bottom: 1.5rem;
+    padding-bottom: 1.1rem;
 }
 
 .char-count {
@@ -866,7 +867,7 @@ select option:disabled {
     max-width: 1200px;
     display: flex;
     flex-direction: column;
-    gap: 1.1rem;
+    gap: 0.95rem;
 }
 
 .hotwords-header {
@@ -1112,12 +1113,12 @@ select option:disabled {
         flex-direction: column;
         flex: 1;
         min-height: 0;
-        padding-bottom: 4.5rem;
+        padding-bottom: 4rem;
         position: relative;
     }
 
     .left-panel {
-        padding: 1.2rem 1.2rem 3.2rem 1.2rem;
+        padding: 1.2rem 1.2rem 2.8rem 1.2rem;
         border-right: none;
         border-bottom: 1px solid var(--border);
         flex: 1;
@@ -1128,7 +1129,7 @@ select option:disabled {
     }
 
     .right-panel {
-        padding: 3.2rem 1.2rem 1.2rem 1.2rem;
+        padding: 2.6rem 1.2rem 1.2rem 1.2rem;
         flex: 1;
         min-height: 0;
         position: static;
@@ -1147,7 +1148,7 @@ select option:disabled {
         position: absolute;
         bottom: 0;
         width: 50%;
-        height: 4.5rem;
+        height: 4rem;
         padding: 0;
         margin: 0;
         border-top: 1px solid var(--border);
@@ -1169,14 +1170,14 @@ select option:disabled {
 
     #submitBtn {
         position: absolute;
-        top: calc((100% - 4.5rem) / 2);
+        top: calc((100% - 4rem) / 2);
         left: 50%;
         transform: translate(-50%, -50%);
         margin: 0;
         z-index: 10;
-        width: 72px;
-        height: 72px;
-        border-radius: 14px;
+        width: 56px;
+        height: 56px;
+        border-radius: 12px;
     }
 
     #submitBtn:hover {
