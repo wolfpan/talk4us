@@ -10,6 +10,9 @@
 
 </div>
 
+> 💡 **建议先直接试用在线版**：打开 [talk4us.com](https://talk4us.com) 就能用——免注册、免安装、免费。
+> 自建部署是可选项，仅供希望完全私有化的朋友参考，见[下文](#自己部署一个)。
+
 ---
 
 ## 为什么做这个网站
@@ -71,6 +74,8 @@ Talk4us 就是为这些时刻做的。**它不是逐字翻译的机器，而是�
 
 ## 自己部署一个
 
+> 只是想用的话，直接访问 [talk4us.com](https://talk4us.com) 即可，无需阅读本节。以下内容面向希望完全私有化部署的朋友。
+
 整个项目非常轻量（Node.js / Express + 原生 JS，无构建步骤），一台最便宜的 VPS 即可跑起来。
 
 **准备事项：**
@@ -125,19 +130,43 @@ cp config.example.json config.json
   "defaultModel": "glm",            // 游客默认引擎 & 未匹配时的回退引擎
   "hotwordsModel": "glm",           // 每周热词生成使用的引擎（缺省用 defaultModel）
   "models": {
+    // 示例一：免费引擎，游客可直接使用
     "glm": {
       "name": "GLM 4 Flash",        // 前端下拉框显示名称
       "url": "https://open.bigmodel.cn/api/paas/v4/chat/completions",
       "model": "glm-4-flash-250414",
       "key": "env:GLM_API_KEY",     // 支持 "env:变量名" 引用 .env，或直接写明文密钥
-      "requiresLogin": false,       // 是否登录后才能选用
+      "requiresLogin": false,       // 游客即可选用
       "enabled": true               // false 时不下发到前端
+    },
+    // 示例二：注册后才解锁的高级引擎
+    "deepseek": {
+      "name": "DeepSeek Flash",
+      "url": "https://api.deepseek.com/chat/completions",
+      "model": "deepseek-flash",
+      "key": "env:DS_API_KEY",
+      "requiresLogin": true,        // 登录用户专用
+      "enabled": true
     }
   }
 }
 ```
 
 > `config.json` 含密钥，已在 `.gitignore` 中排除；修改后**自动热加载**，无需重启服务。
+
+#### 免费引擎推荐
+
+`config.json` 接受任何 OpenAI 兼容接口，以下几家目前提供可白嫖的免费额度，按同样格式填入即可：
+
+| 引擎 | 免费情况 | 特点 |
+| --- | --- | --- |
+| [智谱 GLM-4-Flash](https://open.bigmodel.cn/) | 完全免费 | 国内直连、延迟低，**本项目默认引擎**，自建首选 |
+| [硅基流动 SiliconFlow](https://siliconflow.cn/) | 注册送额度，多款开源模型免费（Qwen、DeepSeek 蒸馏版等） | 国内直连，接口为 `https://api.siliconflow.cn/v1/chat/completions` |
+| [Google Gemini](https://aistudio.google.com/) (AI Studio) | 免费档每日额度 | 效果好、上下文长，但国内访问需自备网络 |
+| [Groq](https://groq.com/) | 免费档 | 推理速度极快，适合在意响应时间的场景 |
+| [OpenRouter](https://openrouter.ai/) | 带 `:free` 后缀的模型免费 | 一个 Key 聚合多家免费模型，每日有次数上限 |
+
+> ⚠️ **注意响应速度**：免费档普遍有速率限制（每分钟 / 每日请求数），超限或高峰期时响应会明显变慢、甚至排队等待。个人使用足够；若要对外提供服务，建议升级付费档，或在 `config.json` 里配置多个引擎互为备份。各家免费政策变动较快，以官方页面为准。
 
 ### 4. 启动
 
