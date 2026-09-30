@@ -1,5 +1,7 @@
 const express = require('express');
 const axios = require('axios');
+const fs = require('fs');
+const path = require('path');
 const { createClient } = require('@supabase/supabase-js');
 const { rateLimit, ipKeyGenerator } = require('express-rate-limit');// 引入限流中间件
 require('dotenv').config();
@@ -296,6 +298,183 @@ ${jsonFormatInstruction}`;
     } catch (error) {
         console.error(`[${config.model}] API 调用失败:`, error.response ? error.response.data : error.message);
         res.status(500).json({ error: `增强引擎 (${finalModel}) 响应异常，请重试。` });
+    }
+});
+
+// =========================================
+// 4. 每周热词接口（AI 自动检索当周热点词汇，按自然周缓存）
+// =========================================
+const HOTWORDS_CACHE_FILE = path.join(__dirname, '.hotwords-cache.json');
+const HOTWORDS_COUNT = 8;
+const hotwordsMemCache = new Map();   // key: `${lang}@${isoWeek}` -> words[]
+const hotwordsInflight = new Map();   // 同周同语言的并发请求去重，避免重复消耗 AI 额度
+
+function isoWeekKey(d = new Date()) {
+    const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+    const dayNum = date.getUTCDay() || 7;
+    date.setUTCDate(date.getUTCDate() + 4 - dayNum);
+    const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+    const weekNo = Math.ceil((((date - yearStart) / 86400000) + 1) / 7);
+    return `${date.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`;
+}
+
+// 启动时从本地文件恢复本周缓存，PM2 重启后不重复消耗 AI 额度
+(function restoreHotwordsCache() {
+    try {
+        const raw = JSON.parse(fs.readFileSync(HOTWORDS_CACHE_FILE, 'utf8'));
+        if (raw && raw.week === isoWeekKey() && raw.data) {
+            for (const [lang, words] of Object.entries(raw.data)) {
+                if (Array.isArray(words) && words.length) {
+                    hotwordsMemCache.set(`${lang}@${raw.week}`, words);
+                }
+            }
+            console.log(`热词缓存已恢复（${raw.week}）`);
+        }
+    } catch (e) { /* 缓存文件缺失或损坏属正常首启状态，静默跳过 */ }
+})();
+
+function persistHotwordsCache(weekKey) {
+    const data = {};
+    for (const lang of ['zh', 'en', 'jp']) {
+        const words = hotwordsMemCache.get(`${lang}@${weekKey}`);
+        if (words) data[lang] = words;
+    }
+    try {
+        fs.writeFileSync(HOTWORDS_CACHE_FILE, JSON.stringify({ week: weekKey, data }, null, 2));
+    } catch (e) {
+        console.warn('热词缓存写入失败:', e.message);
+    }
+}
+
+function buildHotwordsPrompt(lang, weekKey, count) {
+    const specs = {
+        zh: {
+            intro: `请筛选本周（${weekKey}）中文互联网上最新、最热门的 ${count} 个热点词汇/流行语/新梗，领域尽量分散，覆盖：科技、数码、时事、游戏、电影、生活、文化。`,
+            fields: `- "term": 中文热词原文
+- "translation": 对应的地道英文表达（简短）
+- "category": 所属领域，中文，从「科技/数码/时事/游戏/电影/生活/文化」中选择
+- "origin": 用一句中文（30字以内）介绍该词的来源或出处`
+        },
+        en: {
+            intro: `Pick the ${count} freshest trending terms / slang / buzzwords of this week (${weekKey}) from the English-speaking internet. Spread them across: Tech, Gadgets, Current Affairs, Gaming, Movies, Lifestyle, Culture.`,
+            fields: `- "term": the English trending term
+- "translation": its natural Chinese equivalent (short)
+- "category": one of Tech/Gadgets/News/Gaming/Movies/Lifestyle/Culture (in English)
+- "origin": one English sentence (max 20 words) explaining where the term came from`
+        },
+        jp: {
+            intro: `今週（${weekKey}）の日本のインターネットで話題の最新トレンド語・流行語・バズワードを${count}個選んでください。分野は「テック、ガジェット、時事、ゲーム、映画、ライフ、カルチャー」からまんべんなく。`,
+            fields: `- "term": 日本語のトレンドワード
+- "translation": 対応する自然な英語表現（短く）
+- "category": 「テック/ガジェット/時事/ゲーム/映画/ライフ/カルチャー」から一つ（日本語）
+- "origin": その語の出所・由来を日本語で一文（30字以内）で`
+        }
+    };
+    const spec = specs[lang] || specs.zh;
+    return `${spec.intro}
+
+严格只输出一个 JSON 对象（不要任何解释、不要 markdown 代码块标记），格式为：
+{ "words": [ { 以下字段 }, ... ] }
+${spec.fields}`;
+}
+
+function parseHotwords(text) {
+    const cleaned = String(text).replace(/```json/gi, '').replace(/```/g, '').trim();
+    let parsed;
+    try {
+        parsed = JSON.parse(cleaned);
+    } catch (e) {
+        // 模型在 JSON 前后夹带说明文字时，按最外层结构括号截取
+        const objStart = cleaned.indexOf('{');
+        const arrStart = cleaned.indexOf('[');
+        if (arrStart !== -1 && (objStart === -1 || arrStart < objStart)) {
+            const arrEnd = cleaned.lastIndexOf(']');
+            if (arrEnd <= arrStart) throw new Error('未能从返回中解析出 JSON 数组');
+            parsed = JSON.parse(cleaned.slice(arrStart, arrEnd + 1));
+        } else if (objStart !== -1) {
+            const objEnd = cleaned.lastIndexOf('}');
+            if (objEnd <= objStart) throw new Error('未能从返回中解析出 JSON 对象');
+            parsed = JSON.parse(cleaned.slice(objStart, objEnd + 1));
+        } else {
+            throw new Error('未能从返回中解析出 JSON');
+        }
+    }
+    const arr = Array.isArray(parsed) ? parsed : parsed.words;
+    if (!Array.isArray(arr)) throw new Error('热词返回结构异常');
+    return arr
+        .filter(w => w && typeof w.term === 'string' && w.term.trim())
+        .slice(0, HOTWORDS_COUNT)
+        .map(w => ({
+            term: String(w.term).trim(),
+            translation: String(w.translation || '').trim(),
+            category: String(w.category || '').trim(),
+            origin: String(w.origin || '').trim()
+        }));
+}
+
+async function generateHotwords(lang, weekKey) {
+    const config = MODEL_CONFIGS['glm'];
+    if (!config.key) throw new Error('后端缺失 GLM 的 API 密钥');
+
+    const payload = {
+        model: config.model,
+        messages: [
+            { role: 'system', content: '你是一位敏锐的中日英跨语言热点观察员，擅长追踪全球互联网每周的新词热梗，输出严格遵循要求的 JSON 格式。' },
+            { role: 'user', content: buildHotwordsPrompt(lang, weekKey, HOTWORDS_COUNT) }
+        ],
+        temperature: 0.8
+    };
+
+    const response = await axios.post(config.url, payload, {
+        headers: {
+            'Authorization': `Bearer ${config.key}`,
+            'Content-Type': 'application/json'
+        },
+        timeout: 60000
+    });
+
+    const text = response.data.choices[0].message.content;
+    const words = parseHotwords(text);
+    if (!words.length) throw new Error('热词解析结果为空');
+    return words;
+}
+
+async function getHotwords(lang) {
+    const weekKey = isoWeekKey();
+    const cacheKey = `${lang}@${weekKey}`;
+
+    if (hotwordsMemCache.has(cacheKey)) return hotwordsMemCache.get(cacheKey);
+    if (hotwordsInflight.has(cacheKey)) return hotwordsInflight.get(cacheKey);
+
+    const task = generateHotwords(lang, weekKey)
+        .then(words => {
+            hotwordsMemCache.set(cacheKey, words);
+            persistHotwordsCache(weekKey);
+            return words;
+        })
+        .finally(() => hotwordsInflight.delete(cacheKey));
+
+    hotwordsInflight.set(cacheKey, task);
+    return task;
+}
+
+const hotwordsRateLimiter = rateLimit({
+    windowMs: 60 * 1000, // 1 分钟窗口
+    max: 20,
+    keyGenerator: (req) => ipKeyGenerator(req.ip || req.socket.remoteAddress || ''),
+    handler: (req, res) => {
+        res.status(429).json({ error: '请求过于频繁：热词查询每分钟最多 20 次，请稍后再试。' });
+    }
+});
+
+app.get('/api/hotwords', hotwordsRateLimiter, async (req, res) => {
+    const lang = ['zh', 'en', 'jp'].includes(req.query.lang) ? req.query.lang : 'zh';
+    try {
+        const words = await getHotwords(lang);
+        res.json({ week: isoWeekKey(), lang, words });
+    } catch (error) {
+        console.error('每周热词生成失败:', error.response ? error.response.data : error.message);
+        res.status(502).json({ error: '热词生成失败，请稍后重试。' });
     }
 });
 

@@ -52,7 +52,14 @@ const i18nConfig = {
         loginForMore: "登录使用更多模型",
         appDesc: "我们不翻译，只是帮你更专业、优雅地表达想法。",
         appCopyright: "© 2026 talk4us.COM. ALL RIGHTS RESERVED. SELF-ITERATION & ESSENCE.",
-        githubLink: "GitHub"
+        githubLink: "GitHub",
+
+        // --- 每周热词 ---
+        hotwordsTitle: "本周热词",
+        hotwordsSub: "AI 每周自动检索 · 科技 / 数码 / 时事 / 游戏 / 电影 / 生活 / 文化",
+        hotwordsLoading: "AI 正在检索本周热词...",
+        hotwordsError: "热词加载失败，点击重试",
+        hotwordsRefresh: "刷新热词"
     },
     en: {
         // --- 引导页 (Landing) ---
@@ -106,7 +113,14 @@ const i18nConfig = {
         loginForMore: "Log in for more models",
         appDesc: "We don't translate. We restructure your leverage for professional communication.",
         appCopyright: "© 2026 talk4us.COM. ALL RIGHTS RESERVED. SELF-ITERATION & ESSENCE.",
-        githubLink: "GitHub"
+        githubLink: "GitHub",
+
+        // --- 每周热词 ---
+        hotwordsTitle: "Weekly Hot Terms",
+        hotwordsSub: "AI-curated every week · Tech / Gadgets / News / Gaming / Movies / Lifestyle / Culture",
+        hotwordsLoading: "AI is curating this week's terms...",
+        hotwordsError: "Failed to load terms. Click to retry",
+        hotwordsRefresh: "Refresh terms"
     },
     jp: {
         // --- 引导页 (Landing) ---
@@ -159,7 +173,14 @@ const i18nConfig = {
         loginForMore: "ログインしてさらにモデルを使用",
         appDesc: "翻訳ではありません。あなたの考えをより専門的で洗練された表現に再構築します。",
         appCopyright: "© 2026 talk4us.COM. ALL RIGHTS RESERVED. SELF-ITERATION & ESSENCE.",
-        githubLink: "GitHub"
+        githubLink: "GitHub",
+
+        // --- 每周热词 ---
+        hotwordsTitle: "今週のトレンドワード",
+        hotwordsSub: "AIが毎週自動更新 · テック / ガジェット / 時事 / ゲーム / 映画 / ライフ / カルチャー",
+        hotwordsLoading: "AIが今週のワードを検索中...",
+        hotwordsError: "読み込みに失敗しました。クリックで再試行",
+        hotwordsRefresh: "ワードを更新"
 
     }
 };

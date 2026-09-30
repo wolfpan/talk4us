@@ -98,6 +98,88 @@ document.addEventListener('DOMContentLoaded', async () => {
     applyLanguage(currentLang);
 
     // =========================================
+    // 2.5 每周热词 (Weekly Hot Terms)
+    // 语言方向：中文用户 中→EN，日语用户 日→EN，英文用户 EN→中
+    // =========================================
+    const hotwordsGrid = document.getElementById('hotwordsGrid');
+    const hotwordsDir = document.getElementById('hotwordsDir');
+    const hotwordsRefresh = document.getElementById('hotwordsRefresh');
+
+    const hotwordsDirMap = { zh: '中 → EN', jp: '日 → EN', en: 'EN → 中' };
+    let activeHotwordsLang = null;
+
+    function escapeHtml(str) {
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    function renderHotwordsSkeleton(count) {
+        hotwordsGrid.innerHTML = Array.from({ length: count }, () => '<div class="hotword-skeleton"></div>').join('');
+    }
+
+    function renderHotwords(words) {
+        hotwordsGrid.innerHTML = words.map(w => `
+            <article class="hotword-card">
+                <div class="hotword-top">
+                    <span class="hotword-cat">${escapeHtml(w.category)}</span>
+                    <span class="hotword-dir">${hotwordsDirMap[activeHotwordsLang] || ''}</span>
+                </div>
+                <div class="hotword-term">${escapeHtml(w.term)}</div>
+                <div class="hotword-translation">${escapeHtml(w.translation)}</div>
+                <p class="hotword-origin">${escapeHtml(w.origin)}</p>
+            </article>
+        `).join('');
+    }
+
+    function renderHotwordsError() {
+        hotwordsGrid.innerHTML = `<div class="hotwords-state">${i18nConfig[currentLang].hotwordsError}</div>`;
+    }
+
+    async function loadHotwords(lang) {
+        if (!hotwordsGrid || activeHotwordsLang === lang) return;
+        activeHotwordsLang = lang;
+        hotwordsDir.textContent = hotwordsDirMap[lang] || '';
+
+        const refreshTitle = (i18nConfig[lang] && i18nConfig[lang].hotwordsRefresh) || 'Refresh';
+        hotwordsRefresh.title = refreshTitle;
+        hotwordsRefresh.setAttribute('aria-label', refreshTitle);
+
+        renderHotwordsSkeleton(8);
+
+        try {
+            const res = await fetch(`/api/hotwords?lang=${lang}`);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            if (activeHotwordsLang !== lang) return; // 期间语言已切换，丢弃过期结果
+            const words = Array.isArray(data.words) ? data.words : [];
+            if (!words.length) throw new Error('热词为空');
+            renderHotwords(words);
+        } catch (err) {
+            console.error('热词加载失败:', err);
+            if (activeHotwordsLang === lang) renderHotwordsError();
+        }
+    }
+
+    // 点击刷新按钮或错误提示卡片时强制重新拉取
+    function forceReloadHotwords() {
+        activeHotwordsLang = null;
+        loadHotwords(currentLang);
+    }
+
+    hotwordsRefresh.addEventListener('click', forceReloadHotwords);
+    hotwordsGrid.addEventListener('click', (e) => {
+        if (e.target.closest('.hotwords-state')) forceReloadHotwords();
+    });
+
+    // 跟随语言切换联动刷新热词
+    langToggleBtn.addEventListener('click', () => loadHotwords(currentLang));
+    loadHotwords(currentLang);
+
+    // =========================================
     // 3. 初始化 Supabase 客户端
     // =========================================
     let supabaseClient;

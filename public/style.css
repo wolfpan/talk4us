@@ -130,12 +130,12 @@ body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
     display: flex;
     flex-direction: column;
-    justify-content: center;
+    justify-content: flex-start;
     align-items: center;
     min-height: 100vh;
     line-height: 1.6;
-    padding: 2rem;
-    gap: 1.5rem;
+    padding: 1.5rem 2rem 2.5rem;
+    gap: 1.25rem;
     transition: background-color 0.35s ease, color 0.35s ease;
 }
 
@@ -288,7 +288,7 @@ body::before {
 .workspace {
     display: flex;
     position: relative;
-    min-height: 520px;
+    min-height: 420px;
 }
 
 .panel {
@@ -298,12 +298,12 @@ body::before {
 }
 
 .left-panel {
-    padding: 2.5rem 4.5rem 2.5rem 2.5rem;
+    padding: 1.75rem 4rem 1.75rem 2rem;
     border-right: 1px solid var(--border);
 }
 
 .right-panel {
-    padding: 2.5rem 2.5rem 2.5rem 4.5rem;
+    padding: 1.75rem 2rem 1.75rem 4rem;
 }
 
 .panel-header {
@@ -412,7 +412,7 @@ textarea::placeholder {
 
 .suggestion-text {
     font-size: 1.25rem;
-    margin-bottom: 2rem;
+    margin-bottom: 1.25rem;
     white-space: pre-wrap;
     flex: 1;
     background: linear-gradient(120deg, var(--accent), var(--accent-2));
@@ -475,7 +475,7 @@ textarea::placeholder {
    面板底栏与选择器
    ========================================= */
 .panel-footer {
-    padding-top: 1.5rem;
+    padding-top: 1.25rem;
     border-top: 1px solid var(--border);
     display: flex;
     justify-content: center;
@@ -859,6 +859,184 @@ select option:disabled {
 }
 
 /* =========================================
+   每周热词 (Weekly Hot Terms)
+   ========================================= */
+.hotwords-section {
+    width: 100%;
+    max-width: 1200px;
+    display: flex;
+    flex-direction: column;
+    gap: 1.1rem;
+}
+
+.hotwords-header {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.5rem 1rem;
+}
+
+.hotwords-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+}
+
+.hotwords-title::before {
+    content: "";
+    width: 8px;
+    height: 8px;
+    border-radius: 2px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-2));
+    box-shadow: 0 0 8px var(--glow);
+}
+
+.hotwords-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+}
+
+.hotwords-sub {
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    letter-spacing: 0.3px;
+}
+
+.hotwords-dir {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--accent-strong);
+    background: var(--accent-soft);
+    border: 1px solid var(--accent);
+    padding: 2px 9px;
+    border-radius: 999px;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+}
+
+.hotwords-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(255px, 1fr));
+    gap: 1rem;
+}
+
+.hotword-card {
+    background: var(--surface);
+    -webkit-backdrop-filter: blur(16px) saturate(1.3);
+    backdrop-filter: blur(16px) saturate(1.3);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1rem 1.1rem 0.95rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.hotword-card:hover {
+    transform: translateY(-3px);
+    border-color: var(--accent);
+    box-shadow: 0 10px 28px var(--accent-soft);
+}
+
+.hotword-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+
+.hotword-cat {
+    font-family: var(--font-mono);
+    font-size: 0.64rem;
+    font-weight: 600;
+    letter-spacing: 1px;
+    color: var(--accent-strong);
+    background: var(--accent-soft);
+    border: 1px solid var(--border);
+    padding: 2px 8px;
+    border-radius: 999px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.hotword-dir {
+    font-family: var(--font-mono);
+    font-size: 0.64rem;
+    color: var(--text-muted);
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+}
+
+.hotword-term {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1.4;
+    word-break: break-word;
+}
+
+.hotword-translation {
+    font-size: 0.9rem;
+    font-weight: 500;
+    background: linear-gradient(120deg, var(--accent), var(--accent-2));
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: var(--accent-strong);
+    word-break: break-word;
+}
+
+.hotword-origin {
+    font-size: 0.78rem;
+    color: var(--text-muted);
+    line-height: 1.55;
+}
+
+/* 加载骨架屏 */
+.hotword-skeleton {
+    min-height: 132px;
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    background: linear-gradient(100deg, var(--surface-2) 40%, var(--accent-soft) 50%, var(--surface-2) 60%);
+    background-size: 200% 100%;
+    animation: shimmer 1.6s linear infinite;
+}
+
+@keyframes shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+}
+
+/* 加载失败/空状态（可点击重试） */
+.hotwords-state {
+    grid-column: 1 / -1;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    padding: 2.5rem 1rem;
+    border: 1px dashed var(--border-strong);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: color 0.2s ease, border-color 0.2s ease;
+}
+
+.hotwords-state:hover {
+    color: var(--accent);
+    border-color: var(--accent);
+}
+
+/* =========================================
    应用底部
    ========================================= */
 .app-footer {
@@ -906,9 +1084,9 @@ select option:disabled {
 @media (max-width: 900px) {
     body {
         padding: 0;
-        gap: 0;
-        height: 100dvh;
-        overflow: hidden;
+        gap: 1.25rem;
+        min-height: 100dvh;
+        overflow-x: hidden;
         background-color: var(--bg);
     }
 
@@ -1027,6 +1205,16 @@ select option:disabled {
 
     .app-footer {
         display: none;
+    }
+
+    /* 移动端热词栏目：随页面滚动露出 */
+    .hotwords-section {
+        padding: 0 1.2rem 2rem;
+    }
+
+    .hotwords-meta {
+        width: 100%;
+        justify-content: space-between;
     }
 }
 
