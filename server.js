@@ -49,9 +49,9 @@ const FALLBACK_CONFIG = {
             enabled: true
         },
         'deepseek': {
-            name: 'DeepSeek V4 flash',
+            name: 'DeepSeek Flash',
             url: 'https://api.deepseek.com/chat/completions',
-            model: 'deepseek-v4-flash',
+            model: 'deepseek-flash',
             key: 'env:DS_API_KEY',
             requiresLogin: true,
             enabled: true
