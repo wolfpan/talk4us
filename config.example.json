@@ -1,6 +1,17 @@
 {
   "defaultModel": "glm",
   "hotwordsModel": "glm",
+  "hotwordsExtras": {
+    "zh": [
+      {
+        "term": "兰香如故",
+        "translation": "Lan Xiang Ru Gu (Costume Drama)",
+        "category": "电视剧",
+        "origin": "正在热播的古装剧，播出期间话题持续登上热搜",
+        "source": "豆瓣"
+      }
+    ]
+  },
   "models": {
     "glm": {
       "name": "GLM 4 Flash",

@@ -519,7 +519,7 @@ function buildHotwordsPrompt(lang, weekKey, count) {
 
 【地域要求】主要覆盖中国、美国、日本、韩国四地的热点，大致均衡（侧重中国与美国）。
 
-【领域要求】科技、数码、时事、游戏、电影、电视剧、生活、文化等领域尽量分散；热播电视剧（如近期上线的国产剧、韩剧、日剧、美剧）的剧名及衍生热词单独计入「电视剧」类。`,
+【领域要求】科技、数码、时事、游戏、电影、电视剧、生活、文化等领域尽量分散；【电视剧】类必须收录本月正在播出、话题度最高的剧集（国产剧、韩剧、日剧、美剧均可），以剧名或剧情衍生词作为热词。`,
             fields: `- "term": 热词原文（中文热词用中文；美/日/韩源热词可用原文或其通行的中文译名）
 - "translation": 对应的地道英文表达（简短）
 - "category": 所属领域，中文，从「科技/数码/时事/游戏/电影/电视剧/生活/文化」中选择
@@ -612,7 +612,7 @@ async function generateHotwords(lang, weekKey) {
         model: config.model,
         messages: [
             { role: 'system', content: '你是一位敏锐的中日英跨语言热点观察员，擅长追踪全球互联网每周的新词热梗，输出严格遵循要求的 JSON 格式。' },
-            { role: 'user', content: buildHotwordsPrompt(lang, weekKey, HOTWORDS_COUNT) }
+            { role: 'user', content: buildHotwordsPrompt(lang, weekKey, HOTWORDS_COUNT + 2) } // 多要2个：AI 常少给
         ],
         temperature: 0.8
     };
@@ -633,18 +633,48 @@ async function generateHotwords(lang, weekKey) {
     return words;
 }
 
+// 人工补充热词：config.json 的 hotwordsExtras（按语言）直接并入词库。
+// 用于 AI 训练数据未覆盖的最新热剧/热词（如兰香如故），每周自动带上，config 热加载即时生效
+function getHotwordsExtras(lang) {
+    const cfg = loadConfig();
+    const raw = (cfg.hotwordsExtras && cfg.hotwordsExtras[lang]) || [];
+    if (!Array.isArray(raw)) return [];
+    return raw
+        .filter(w => w && typeof w.term === 'string' && w.term.trim())
+        .map(w => ({
+            term: String(w.term).trim(),
+            translation: String(w.translation || '').trim(),
+            category: String(w.category || '电视剧').trim(),
+            origin: String(w.origin || '').trim(),
+            source: String(w.source || '').trim()
+        }));
+}
+
 async function getHotwords(lang) {
     const weekKey = isoWeekKey();
     const cacheKey = `${lang}@${weekKey}`;
 
-    if (hotwordsMemCache.has(cacheKey)) return hotwordsMemCache.get(cacheKey);
+    // 每次读取都合并人工补充词（config 可随时增删，热加载后立即体现在响应里）
+    const mergeExtras = (words) => {
+        const extras = getHotwordsExtras(lang);
+        if (!extras.length) return words;
+        const seen = new Set(words.map(w => w.term));
+        const merged = words.slice();
+        for (const ex of extras) {
+            if (!seen.has(ex.term)) merged.push(ex);
+            seen.add(ex.term);
+        }
+        return merged;
+    };
+
+    if (hotwordsMemCache.has(cacheKey)) return mergeExtras(hotwordsMemCache.get(cacheKey));
     if (hotwordsInflight.has(cacheKey)) return hotwordsInflight.get(cacheKey);
 
     const task = generateHotwords(lang, weekKey)
         .then(words => {
             hotwordsMemCache.set(cacheKey, words);
             persistHotwordsCache(weekKey);
-            return words;
+            return mergeExtras(words);
         })
         .finally(() => hotwordsInflight.delete(cacheKey));
 
