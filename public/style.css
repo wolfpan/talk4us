@@ -256,6 +256,11 @@ body::before {
     letter-spacing: 1.5px;
     color: var(--text-secondary);
     text-transform: uppercase;
+    /* 预留右侧操作按钮空间，长标题（如英文）收缩为省略号，避免重叠 */
+    max-width: calc(100% - 150px);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .window-title::before {
@@ -540,9 +545,11 @@ select option:disabled {
     transform: translate(-50%, -50%);
     z-index: 10;
 
-    width: 64px;
+    /* 宽度自适应文字（中文两字保持方形，英文长词自动加宽） */
+    width: auto;
+    min-width: 64px;
     height: 64px;
-    padding: 6px;
+    padding: 6px 16px;
     border-radius: 12px;
 
     background: linear-gradient(135deg, var(--accent), var(--accent-2));
@@ -1175,8 +1182,10 @@ select option:disabled {
         transform: translate(-50%, -50%);
         margin: 0;
         z-index: 10;
-        width: 56px;
+        min-width: 56px;
         height: 56px;
+        padding: 4px 14px;
+        font-size: 0.75rem;
         border-radius: 12px;
     }
 
@@ -1220,6 +1229,12 @@ select option:disabled {
 }
 
 @media (max-width: 480px) {
+    .window-title {
+        max-width: calc(100vw - 128px);
+        font-size: 0.62rem;
+        letter-spacing: 0.5px;
+    }
+
     .window-footer {
         height: auto;
         padding: 0.8rem 1rem;
@@ -1232,16 +1247,24 @@ select option:disabled {
     }
 
     .select-group {
-        gap: 0.5rem;
+        gap: 0.4rem;
+        min-width: 0;
     }
 
     .group-label {
-        font-size: 0.65rem;
+        font-size: 0.6rem;
+        flex-shrink: 0;
     }
 
     select {
-        padding: 0.4rem 1.5rem 0.4rem 0.5rem;
-        font-size: 0.8rem;
+        padding: 0.35rem 1.3rem 0.35rem 0.55rem;
+        font-size: 0.75rem;
+        max-width: 100%;
+    }
+
+    /* 底部两个 50% 宽的固定栏：下拉框需为长标签留出空间，避免顶满溢出 */
+    .panel-footer select {
+        max-width: 36vw;
     }
 
     textarea {
