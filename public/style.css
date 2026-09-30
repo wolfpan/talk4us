@@ -1229,10 +1229,13 @@ select option:disabled {
 }
 
 @media (max-width: 480px) {
+    /* 页面过窄时：隐藏顶部 slogan 与 AI 分析说明框，聚焦输入/输出主内容 */
     .window-title {
-        max-width: calc(100vw - 128px);
-        font-size: 0.62rem;
-        letter-spacing: 0.5px;
+        display: none;
+    }
+
+    .rationale-box {
+        display: none;
     }
 
     .window-footer {
