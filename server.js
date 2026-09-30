@@ -361,6 +361,10 @@ ${jsonFormatInstruction}`;
         const response = await callModelWithRetry();
 
         const resultText = response.data.choices[0].message.content;
+        // 空值防护：推理模型思考耗尽 token 或服务波动时 content 可能为 null
+        if (!resultText || !resultText.trim()) {
+            return res.status(502).json({ error: 'AI 引擎本次未返回内容（可能思考超时或服务波动），请重试。' });
+        }
         const cleanJsonText = resultText.replace(/```json/g, '').replace(/```/g, '').trim();
         const resultJson = JSON.parse(cleanJsonText);
         
@@ -506,6 +510,8 @@ async function generateHotwords(lang, weekKey) {
     });
 
     const text = response.data.choices[0].message.content;
+    // 空值防护：content 为 null 时给出明确原因而非解析异常
+    if (!text || !text.trim()) throw new Error('AI 引擎本次未返回内容（可能思考超时或服务波动）');
     const words = parseHotwords(text);
     if (!words.length) throw new Error('热词解析结果为空');
     return words;
