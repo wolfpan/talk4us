@@ -2,18 +2,31 @@
 <html lang="zh">
 
 <head>
+    <script>
+        // 主题初始化：亮色为默认，首屏渲染前设定，避免闪烁
+        (function () {
+            var t = localStorage.getItem('talk4us_theme');
+            document.documentElement.setAttribute('data-theme', t === 'dark' ? 'dark' : 'light');
+        })();
+    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>talk4us.com | 会聊，让翻译更得体</title>
+    <link rel="stylesheet" href="style.css">
     <script src="lang.js"></script>
     <style>
         /* =========================================
-           极简主义黑白/暗金美学
+           Landing 页面专属样式
+           主题变量 / 网格光晕背景 / 滚动条来自 style.css
            ========================================= */
-        * {
-            box-sizing: border-box;
-            margin: 0;
+        body {
+            display: block;
             padding: 0;
+            gap: 0;
+            min-height: 100vh;
+            overflow-x: hidden;
+            line-height: 1.7;
+            letter-spacing: 0.05em;
         }
 
         html {
@@ -21,27 +34,8 @@
             scroll-behavior: smooth;
         }
 
-        body {
-            background-color: #000000;
-            color: #e0e0e0;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-            line-height: 1.7;
-            padding: 0;
-            overflow-x: hidden;
-            letter-spacing: 0.05em;
-        }
-
         ::-webkit-scrollbar {
             width: 6px;
-        }
-
-        ::-webkit-scrollbar-track {
-            background: transparent;
-        }
-
-        ::-webkit-scrollbar-thumb {
-            background-color: rgba(255, 255, 255, 0.1);
-            border-radius: 3px;
         }
 
         .screen {
@@ -68,38 +62,29 @@
         }
 
         .logo {
+            font-family: var(--font-mono);
             font-size: 1.8rem;
             font-weight: 700;
             letter-spacing: 2px;
-            color: #ffffff;
+            color: var(--text);
             text-transform: uppercase;
         }
 
         .logo span {
-            color: #D4AF37;
+            background: linear-gradient(120deg, var(--accent), var(--accent-2));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
         }
 
-        /* 新增语言切换按钮样式 */
         .header-actions {
             display: flex;
             align-items: center;
-        }
-        
-        .lang-btn {
-            background: transparent;
-            border: none;
-            color: #888;
-            font-size: 0.85rem;
-            font-weight: 700;
-            letter-spacing: 1px;
-            cursor: pointer;
-            transition: all 0.2s;
-            padding: 4px;
-            outline: none;
+            gap: 12px;
         }
 
-        .lang-btn:hover {
-            color: #D4AF37;
+        .lang-btn {
+            font-size: 0.85rem;
         }
 
         .hero-wrapper {
@@ -121,7 +106,7 @@
         h1 {
             font-size: 3rem;
             font-weight: 800;
-            color: #ffffff;
+            color: var(--text);
             line-height: 1.3;
             margin-bottom: 1.5rem;
             letter-spacing: -0.02em;
@@ -135,26 +120,40 @@
 
         .subtitle {
             font-size: 1.15rem;
-            color: #888888;
+            color: var(--text-secondary);
             max-width: 720px;
             margin: 0 auto 3.5rem auto;
             font-weight: 400;
         }
 
         /* =========================================
-           交互演示黑盒
+           交互演示面板 (玻璃拟态)
            ========================================= */
         .demo-container {
             width: 100%;
             max-width: 1000px;
             margin: 0 auto;
-            background-color: #0f1110;
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 12px;
+            background: var(--surface);
+            -webkit-backdrop-filter: blur(24px) saturate(1.4);
+            backdrop-filter: blur(24px) saturate(1.4);
+            border: 1px solid var(--border);
+            border-radius: 16px;
             display: flex;
             overflow: hidden;
-            box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6);
+            box-shadow: var(--shadow);
             text-align: left;
+            position: relative;
+        }
+
+        .demo-container::before {
+            content: "";
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--accent), var(--accent-2), transparent);
+            opacity: 0.6;
         }
 
         @media (max-width: 768px) {
@@ -173,29 +172,22 @@
         }
 
         .demo-left {
-            border-right: 1px solid rgba(255, 255, 255, 0.05);
-            background-color: rgba(255, 95, 86, 0.01);
+            border-right: 1px solid var(--border);
         }
 
         @media (max-width: 768px) {
             .demo-left {
                 border-right: none;
-                border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+                border-bottom: 1px solid var(--border);
             }
         }
 
-        .demo-right {
-            background-color: rgba(212, 175, 55, 0.01);
-        }
-
         .panel-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
             margin-bottom: 1.5rem;
         }
 
         .panel-label {
+            font-family: var(--font-mono);
             font-size: 0.7rem;
             font-weight: 600;
             letter-spacing: 2px;
@@ -203,16 +195,17 @@
         }
 
         .label-red {
-            color: #ff5f56;
+            color: var(--danger);
         }
 
         .label-gold {
-            color: #D4AF37;
+            color: var(--accent);
         }
 
         .status-indicator {
+            font-family: var(--font-mono);
             font-size: 0.65rem;
-            color: #555;
+            color: var(--text-muted);
             letter-spacing: 1px;
             opacity: 0;
             transition: opacity 0.3s ease;
@@ -230,11 +223,14 @@
         }
 
         .text-muted {
-            color: #a0a0a0;
+            color: var(--text-secondary);
         }
 
         .text-highlight {
-            color: #D4AF37;
+            background: linear-gradient(120deg, var(--accent), var(--accent-2));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
             font-weight: 500;
         }
 
@@ -242,11 +238,12 @@
             display: inline-block;
             width: 2px;
             height: 1.1em;
-            background-color: currentColor;
+            background-color: var(--accent);
             vertical-align: text-bottom;
             margin-left: 2px;
             animation: blink 1s step-end infinite;
             opacity: 0;
+            box-shadow: 0 0 6px var(--glow);
         }
 
         .cursor.active {
@@ -263,7 +260,7 @@
             bottom: 2rem;
             left: 50%;
             transform: translateX(-50%);
-            color: #555;
+            color: var(--accent);
             animation: bounce 2s infinite;
             opacity: 0.7;
         }
@@ -287,7 +284,7 @@
         }
 
         .values-section {
-            max-width: 1200px; 
+            max-width: 1200px;
             width: 100%;
             margin: 0 auto;
         }
@@ -295,7 +292,7 @@
         .values-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 4rem; 
+            gap: 4rem;
         }
 
         @media (max-width: 768px) {
@@ -313,7 +310,7 @@
         .value-card h3 {
             font-size: clamp(1.4rem, 2vw + 1rem, 2rem);
             font-weight: 600;
-            color: #ffffff;
+            color: var(--text);
             margin-bottom: 1.2rem;
             position: relative;
             padding-left: 1rem;
@@ -323,17 +320,18 @@
             content: "";
             position: absolute;
             left: 0;
-            top: 20%; 
+            top: 20%;
             height: 60%;
-            width: 3px; 
-            background-color: #D4AF37;
+            width: 3px;
+            background: linear-gradient(180deg, var(--accent), var(--accent-2));
             border-radius: 2px;
+            box-shadow: 0 0 8px var(--glow);
         }
 
         .value-card p {
             font-size: clamp(1.05rem, 1.2vw + 0.6rem, 1.4rem);
-            color: #888888;
-            line-height: 1.8; 
+            color: var(--text-secondary);
+            line-height: 1.8;
         }
 
         .cta-section {
@@ -342,44 +340,43 @@
         }
 
         .cta-btn {
-            background-color: transparent;
-            color: #D4AF37;
-            border: 1px solid rgba(212, 175, 55, 0.3);
+            background: linear-gradient(135deg, var(--accent), var(--accent-2));
+            color: #ffffff;
+            border: none;
             padding: clamp(1.2rem, 2vw, 1.5rem) clamp(2.5rem, 4vw, 3.5rem);
             font-size: clamp(1.1rem, 1.5vw + 0.5rem, 1.4rem);
             font-weight: 600;
             letter-spacing: 2px;
-            border-radius: 6px;
+            border-radius: 10px;
             cursor: pointer;
             transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
             text-transform: uppercase;
             outline: none;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+            box-shadow: 0 8px 28px var(--glow), inset 0 1px 0 rgba(255, 255, 255, 0.25);
         }
 
         .cta-btn:hover {
-            background-color: #D4AF37;
-            color: #000000;
-            border-color: #D4AF37;
             transform: translateY(-2px);
-            box-shadow: 0 8px 30px rgba(212, 175, 55, 0.2);
+            box-shadow: 0 12px 36px var(--glow), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+            filter: brightness(1.06);
         }
 
         footer {
             width: 100%;
             padding: 2rem 1.5rem;
-            border-top: 1px solid rgba(255, 255, 255, 0.05);
+            border-top: 1px solid var(--border);
             text-align: center;
-            font-size: 0.75rem;
-            color: #444444;
+            font-family: var(--font-mono);
+            font-size: 0.72rem;
+            color: var(--text-muted);
             letter-spacing: 1px;
             margin-top: auto;
         }
-        
+
         .privacy-notice {
             margin-top: 7.5rem;
             font-size: 1.25rem;
-            color: #555555;
+            color: var(--text-muted);
             letter-spacing: 1.25px;
             font-weight: 400;
             max-width: 680px;
@@ -390,7 +387,7 @@
         }
 
         .privacy-notice:hover {
-            color: #888888;
+            color: var(--accent);
         }
     </style>
 </head>
@@ -401,14 +398,18 @@
         <header>
             <div class="logo">TALK<span>4us</span></div>
             <div class="header-actions">
+                <button id="themeToggleBtn" class="theme-toggle" title="切换主题">
+                    <svg class="icon-moon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+                    <svg class="icon-sun" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+                </button>
                 <button id="langToggleBtn" class="lang-btn">CN</button>
             </div>
         </header>
 
         <div class="hero-wrapper">
             <section class="hero">
-                <h1 data-i18n="landingHeroTitle">沟通的本质，是重塑边界。</h1>
-                <p class="subtitle" data-i18n="landingSubtitle">我们不翻译，我们重构职场博弈的筹码。专为跨国协作、向上管理与高难度商业沟通设计的 AI 沟通专家。</p>
+                <h1 data-i18n="landingHeroTitle">不知怎么开口？就用会聊</h1>
+                <p class="subtitle" data-i18n="landingSubtitle"> 我们不止翻译，还能帮助你把话说得体。专为跨国交流、职场协作和商业沟通设计的 AI 翻译助手。</p>
 
                 <div class="demo-container">
                     <div class="demo-panel demo-left">
@@ -446,16 +447,16 @@
             <section class="values-section">
                 <div class="values-grid">
                     <div class="value-card">
-                        <h3 data-i18n="val1Title">建设性直率</h3>
-                        <p data-i18n="val1Desc">告别弱势的“I think”，使用地道职场表达，守住底线，对事不对人。</p>
+                        <h3 data-i18n="val1Title">建设性</h3>
+                        <p data-i18n="val1Desc">告别弱势的“I think”，用地道表达，守住底线。</p>
                     </div>
                     <div class="value-card">
-                        <h3 data-i18n="val2Title">低压体贴感</h3>
-                        <p data-i18n="val2Desc">打破机械的句式断句，将语意自然串联，让沟通实现松弛感。</p>
+                        <h3 data-i18n="val2Title">低压感</h3>
+                        <p data-i18n="val2Desc">拒绝命令式短句，避免攻击性，轻松交流，促成合作。</p>
                     </div>
                     <div class="value-card">
-                        <h3 data-i18n="val3Title">情绪价值重塑</h3>
-                        <p data-i18n="val3Desc">抹除AI感，还原真实、克制且专业的表达，让每一次交流都具备质感。</p>
+                        <h3 data-i18n="val3Title">情绪价值</h3>
+                        <p data-i18n="val3Desc">转为坦诚、克制的言语，让每次交流都有分寸感。</p>
                     </div>
                 </div>
             </section>
@@ -473,6 +474,7 @@
         </footer>
     </div>
 
+    <script src="theme.js"></script>
     <script>
         // =========================================
         // 1. 语言引擎与状态同步

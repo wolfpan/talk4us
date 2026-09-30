@@ -2,6 +2,11 @@
 <html lang="zh">
 <head>
     <script>
+        // 主题初始化：亮色为默认，首屏渲染前设定，避免闪烁
+        (function () {
+            var t = localStorage.getItem('talk4us_theme');
+            document.documentElement.setAttribute('data-theme', t === 'dark' ? 'dark' : 'light');
+        })();
         if (!localStorage.getItem('talk4us_visited')) {
             window.location.replace('/landing.html');
         }
@@ -13,6 +18,7 @@
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="lang.js"></script>
+    <script src="theme.js"></script>
 </head>
 <body>
     <div id="authOverlay" class="pin-overlay hidden" style="display: none;">
@@ -36,6 +42,10 @@
         <div class="window-header">
             <div class="window-title" data-i18n="appTitle">Talk4us, 优雅沟通</div>
             <div class="header-actions" style="position: absolute; right: 15px; display: flex; align-items: center; gap: 12px;">
+                <button id="themeToggleBtn" class="theme-toggle" title="切换主题">
+                    <svg class="icon-moon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+                    <svg class="icon-sun" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+                </button>
                 <button id="langToggleBtn" class="lang-btn">CN</button>
                 <button id="logoutBtn" class="icon-btn" title="退出登录" style="display: none;">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
