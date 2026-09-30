@@ -466,7 +466,7 @@ ${jsonFormatInstruction}`;
 // 4. 每周热词接口（AI 自动检索当周热点词汇，按自然周缓存）
 // =========================================
 const HOTWORDS_CACHE_FILE = path.join(__dirname, '.hotwords-cache.json');
-const HOTWORDS_COUNT = 24; // 每语言周词库容量（前端每次随机抽取其中 8 个展示）
+const HOTWORDS_COUNT = 32; // 每语言周词库容量（前端每次随机抽取其中 8 个展示）
 const hotwordsMemCache = new Map();   // key: `${lang}@${isoWeek}` -> words[]
 const hotwordsInflight = new Map();   // 同周同语言的并发请求去重，避免重复消耗 AI 额度
 
@@ -523,7 +523,8 @@ function buildHotwordsPrompt(lang, weekKey, count) {
             fields: `- "term": 热词原文（中文热词用中文；美/日/韩源热词可用原文或其通行的中文译名）
 - "translation": 对应的地道英文表达（简短）
 - "category": 所属领域，中文，从「科技/数码/时事/游戏/电影/生活/文化」中选择
-- "origin": 用一句中文（35字以内）点明该词对应的具体热点事件或来源`
+- "origin": 用一句中文（35字以内）点明该词对应的具体热点事件或来源
+- "source": 报道该事件的权威来源机构名（如：新华网、人民网、36氪、澎湃、TechCrunch、The Verge、NHK、日经、韩联社等，只写机构名不要URL）`
         },
         en: {
             intro: `You are a breaking-news editor. Identify ${count} trending terms / slang / buzzwords born from REAL hot events of this month (ISO week ${weekKey}) — news, product launches, sports, entertainment, viral social media moments.
@@ -538,7 +539,8 @@ function buildHotwordsPrompt(lang, weekKey, count) {
             fields: `- "term": the trending term (US terms in English; CN/JP/KR terms in romanized or original form)
 - "translation": its natural Chinese equivalent (short)
 - "category": one of Tech/Gadgets/News/Gaming/Movies/Lifestyle/Culture (in English)
-- "origin": one English sentence (max 22 words) naming the specific event it comes from`
+- "origin": one English sentence (max 22 words) naming the specific event it comes from
+- "source": the authoritative outlet covering it (e.g. TechCrunch, The Verge, Reuters, NHK, Yonhap; name only, no URL)`
         },
         jp: {
             intro: `あなたはニュース編集者です。今月（ISO週 ${weekKey}）に実際に起きた・進行中の話題のニュースから生まれた最新トレンド語・流行語・バズワードを${count}個取り上げてください。
@@ -553,7 +555,8 @@ function buildHotwordsPrompt(lang, weekKey, count) {
             fields: `- "term": トレンドワード（日本の語は日本語；中・米・韓の語は原語または通用する日本語表記）
 - "translation": 対応する自然な英語表現（短く）
 - "category": 「テック/ガジェット/時事/ゲーム/映画/ライフ/カルチャー」から一つ（日本語）
-- "origin": その語が生まれた具体的な事件・話題を日本語で一文（35字以内）で`
+- "origin": その語が生まれた具体的な事件・話題を日本語で一文（35字以内）で
+- "source": その事件を報じた権威ある媒体名（例：NHK、日経、朝日新聞、Yonhap、TechCrunch。媒体名のみ、URL不要）`
         }
     };
     const spec = specs[lang] || specs.zh;
@@ -594,7 +597,8 @@ function parseHotwords(text) {
             term: String(w.term).trim(),
             translation: String(w.translation || '').trim(),
             category: String(w.category || '').trim(),
-            origin: String(w.origin || '').trim()
+            origin: String(w.origin || '').trim(),
+            source: String(w.source || '').trim()
         }));
 }
 

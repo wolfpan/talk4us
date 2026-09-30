@@ -141,6 +141,14 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     function renderHotwords(words, lang, week) {
         const picked = pickRandomWords(words, lang, week);
+        // 新闻出处链接：由热词+来源构造权威新闻搜索（中文走百度新闻，英/日走 Google News），
+        // 避免直接采用 AI 生成的 URL（存在编造假链风险）
+        const newsUrl = (w) => {
+            const q = encodeURIComponent(w.term + (w.source ? ' ' + w.source : ''));
+            return lang === 'zh'
+                ? `https://www.baidu.com/s?tn=news&word=${q}`
+                : `https://news.google.com/search?q=${q}`;
+        };
         hotwordsGrid.innerHTML = picked.map(w => `
             <article class="hotword-card">
                 <div class="hotword-top">
@@ -150,6 +158,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 <div class="hotword-term">${escapeHtml(w.term)}</div>
                 <div class="hotword-translation">${escapeHtml(w.translation)}</div>
                 <p class="hotword-origin">${escapeHtml(w.origin)}</p>
+                <a class="hotword-source" href="${newsUrl(w)}" target="_blank" rel="noopener noreferrer">${w.source ? escapeHtml(w.source) : ''} 阅读新闻 ↗</a>
             </article>
         `).join('');
     }

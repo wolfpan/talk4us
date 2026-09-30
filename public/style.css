@@ -1011,6 +1011,28 @@ select option:disabled {
     line-height: 1.55;
 }
 
+/* 新闻出处链接 */
+.hotword-source {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: auto;
+    padding-top: 0.35rem;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    font-weight: 600;
+    color: var(--accent);
+    text-decoration: none;
+    letter-spacing: 0.3px;
+    border-top: 1px dashed var(--border);
+    transition: color 0.2s ease;
+}
+
+.hotword-source:hover {
+    color: var(--accent-strong);
+    text-decoration: underline;
+}
+
 /* 加载骨架屏 */
 .hotword-skeleton {
     min-height: 132px;
@@ -1056,7 +1078,7 @@ select option:disabled {
     font-size: 0.8rem;
     color: var(--text-muted);
     letter-spacing: 1px;
-    margin-top: -0.5rem;
+    margin-top: 1rem; /* 与热词栏目保持呼吸感，不显局促 */
     padding-bottom: 2rem;
     text-transform: uppercase;
 }
