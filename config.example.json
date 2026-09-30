@@ -1,11 +1,10 @@
 {
   "defaultModel": "glm",
-  "hotwordsModel": "gemini-flash-lite",
+  "hotwordsModel": "glm",
   "hotwordsSearch": {
     "enabled": true,
-    "cx": "env:GOOGLE_CSE_ID",
-    "key": "env:GOOGLE_CSE_KEY",
-    "dateRestrict": "d14",
+    "key": "env:TAVILY_API_KEY",
+    "days": 14,
     "queriesPerLang": 5
   },
   "hotwordsExtras": {
@@ -35,16 +34,6 @@
       "key": "env:DS_API_KEY",
       "requiresLogin": true,
       "enabled": true
-    },
-    "gemini-flash-lite": {
-      "name": "Gemini Flash Lite",
-      "url": "https://generativelanguage.googleapis.com/v1beta",
-      "model": "gemini-3.5-flash-lite",
-      "key": "env:GEMINI_API_KEY",
-      "requiresLogin": false,
-      "enabled": true,
-      "hidden": true,
-      "api": "gemini"
     }
   }
 }

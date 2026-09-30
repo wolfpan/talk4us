@@ -108,10 +108,9 @@ SUPABASE_ANON_KEY=你的_Supabase_Anon_Key
 GLM_API_KEY=你的_智谱_API_Key
 DS_API_KEY=你的_DeepSeek_API_Key
 
-# Google 可编程搜索引擎（可选）：为每周热词提供真实新闻线索与文章链接
-# 在 https://programmablesearchengine.google.com 创建引擎，并在 GCP 启用 Custom Search API
-GOOGLE_CSE_KEY=AIza开头的_Custom_Search_API_Key
-GOOGLE_CSE_ID=搜索引擎_ID_cx
+# Tavily 新闻搜索（可选）：为每周热词提供真实新闻线索与文章链接
+# 在 https://tavily.com 注册获取（免费层 1000 次/月）
+TAVILY_API_KEY=tvly开头的_Tavily_API_Key
 
 # Supabase 自动恢复（可选，强烈建议免费版配置）
 # 免费版项目闲置 7 天会被暂停、全站鉴权失败。服务内置每日保活；
