@@ -97,6 +97,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const HOTWORDS_DISPLAY = 8;          // 每次展示数量
     const HOTWORDS_SHOWN_KEY = 'talk4us_hotwords_shown';
     let activeHotwordsLang = null;
+    let hotwordsReqId = 0;               // 请求序号：丢弃过期响应，避免慢请求覆盖新结果
 
     // 从周词库随机抽取一组展示词：优先抽未展示过的，保证每次访问全部不同；
     // 剩余不足时重置该语言的记录重新开始（记录按语言独立、按周失效）
@@ -159,6 +160,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     async function loadHotwords(lang) {
         if (!hotwordsGrid || activeHotwordsLang === lang) return;
+        const reqId = ++hotwordsReqId;
         activeHotwordsLang = lang;
         hotwordsDir.textContent = hotwordsDirMap[lang] || '';
 
@@ -166,19 +168,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         hotwordsRefresh.title = refreshTitle;
         hotwordsRefresh.setAttribute('aria-label', refreshTitle);
 
-        renderHotwordsSkeleton(8);
+        renderHotwordsSkeleton(HOTWORDS_DISPLAY);
 
         try {
             const res = await fetch(`/api/hotwords?lang=${lang}`);
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const data = await res.json();
-            if (activeHotwordsLang !== lang) return; // 期间语言已切换，丢弃过期结果
+            if (reqId !== hotwordsReqId) return; // 期间已有更新的请求，丢弃过期结果
             const words = Array.isArray(data.words) ? data.words : [];
             if (!words.length) throw new Error('热词为空');
             renderHotwords(words, lang, data.week || '');
         } catch (err) {
             console.error('热词加载失败:', err);
-            if (activeHotwordsLang === lang) renderHotwordsError();
+            if (reqId === hotwordsReqId) renderHotwordsError();
         }
     }
 
