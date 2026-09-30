@@ -519,7 +519,8 @@ function buildHotwordsPrompt(lang, weekKey, count) {
 
 【地域要求】主要覆盖中国、美国、日本、韩国四地的热点，大致均衡（侧重中国与美国）。
 
-【领域要求】科技、数码、时事、AI、机器人、财经、科学、电影、电视剧、生活等领域尽量分散；【电视剧】类必须收录本月正在播出、话题度最高的剧集（国产剧、韩剧、日剧、美剧均可），以剧名或剧情衍生词作为热词。`,
+【领域要求】科技、数码、时事、AI、机器人、财经、科学、电影、电视剧、生活等领域尽量分散；【电视剧】类必须收录本月正在播出、话题度最高的剧集（国产剧、韩剧、日剧、美剧均可），以剧名或剧情衍生词作为热词。
+【唯一性要求】${count} 个词条彼此不得重复：同一事物的不同写法（如带书名号/不带书名号、加前后缀的变体）只保留一个。`,
             fields: `- "term": 热词原文（中文热词用中文；美/日/韩源热词可用原文或其通行的中文译名）
 - "translation": 对应的地道英文表达（简短）
 - "category": 所属领域，中文，从「科技/数码/时事/AI/机器人/财经/科学/电影/电视剧/生活」中选择
@@ -535,7 +536,8 @@ function buildHotwordsPrompt(lang, weekKey, count) {
 
 [REGIONS] Focus on the United States and China, plus Japan and South Korea, roughly balanced.
 
-[CATEGORIES] Spread across Tech, Gadgets, News, AI, Robotics, Finance, Science, Movies, TV Drama, Lifestyle; trending TV series titles and their memes go under TV Drama.`,
+[CATEGORIES] Spread across Tech, Gadgets, News, AI, Robotics, Finance, Science, Movies, TV Drama, Lifestyle; trending TV series titles and their memes go under TV Drama.
+[UNIQUENESS] All ${count} terms must be distinct — keep only one variant of the same thing (with/without quotes or decorations).`,
             fields: `- "term": the trending term (US terms in English; CN/JP/KR terms in romanized or original form)
 - "translation": its natural Chinese equivalent (short)
 - "category": one of Tech/Gadgets/News/AI/Robotics/Finance/Science/Movies/TV Drama/Lifestyle (in English)
@@ -551,7 +553,8 @@ function buildHotwordsPrompt(lang, weekKey, count) {
 
 【地域】日本と韓国を中心に、中国・アメリカの話題もバランスよく含める。
 
-【分野】テック、ガジェット、時事、AI、ロボット、金融、科学、映画、ドラマ、ライフに分散。話題のドラマ（中国ドラマ・韓ドラ・日ドラ・米ドラ）のタイトルと派生語は「ドラマ」に入れる。`,
+【分野】テック、ガジェット、時事、AI、ロボット、金融、科学、映画、ドラマ、ライフに分散。話題のドラマ（中国ドラマ・韓ドラ・日ドラ・米ドラ）のタイトルと派生語は「ドラマ」に入れる。
+【一意性】${count}語は互いに重複しないこと。同一事項の表記ゆれ（括弧の有無など）は一つだけ残す。`,
             fields: `- "term": トレンドワード（日本の語は日本語；中・米・韓の語は原語または通用する日本語表記）
 - "translation": 対応する自然な英語表現（短く）
 - "category": 「テック/ガジェット/時事/AI/ロボット/金融/科学/映画/ドラマ/ライフ」から一つ（日本語）
@@ -650,19 +653,37 @@ function getHotwordsExtras(lang) {
         }));
 }
 
+// 词条规范化：去除书名号/引号/空格等装饰后小写比较，用于识别
+// 《XX》与 XX、《XX》韩版与 XX韩版 这类仅装饰差异的重复词
+function normalizeTerm(t) {
+    return String(t).toLowerCase().replace(/[《》【】\[\]""''「」\s·・：:，,-—_]/g, '');
+}
+
+function dedupeWords(words) {
+    const seen = new Set();
+    return words.filter(w => {
+        const k = normalizeTerm(w.term);
+        if (!k || seen.has(k)) return false;
+        seen.add(k);
+        return true;
+    });
+}
+
 async function getHotwords(lang) {
     const weekKey = isoWeekKey();
     const cacheKey = `${lang}@${weekKey}`;
 
-    // 每次读取都合并人工补充词（config 可随时增删，热加载后立即体现在响应里）
+    // 每次读取都清洗去重并合并人工补充词：缓存里的旧数据也能自动清洗，无需重新生成
     const mergeExtras = (words) => {
+        const deduped = dedupeWords(words);
         const extras = getHotwordsExtras(lang);
-        if (!extras.length) return words;
-        const seen = new Set(words.map(w => w.term));
-        const merged = words.slice();
+        if (!extras.length) return deduped;
+        const seen = new Set(deduped.map(w => normalizeTerm(w.term)));
+        const merged = deduped.slice();
         for (const ex of extras) {
-            if (!seen.has(ex.term)) merged.push(ex);
-            seen.add(ex.term);
+            const k = normalizeTerm(ex.term);
+            if (!seen.has(k)) merged.push(ex);
+            seen.add(k);
         }
         return merged;
     };

@@ -99,6 +99,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     let activeHotwordsLang = null;
     let hotwordsReqId = 0;               // 请求序号：丢弃过期响应，避免慢请求覆盖新结果
 
+    // 词条规范化键：与后端 dedupe 规则一致，变体词（书名号/空格差异）也算重复
+    function normalizeTerm(t) {
+        return String(t).toLowerCase().replace(/[《》【】\[\]""''「」\s·・：:，,-—_]/g, '');
+    }
+
     // 从周词库随机抽取一组展示词：优先抽未展示过的，保证每次访问全部不同；
     // 剩余不足时重置该语言的记录重新开始（记录按语言独立、按周失效）
     function pickRandomWords(words, lang, week) {
@@ -108,10 +113,20 @@ document.addEventListener('DOMContentLoaded', async () => {
             store = { week, [lang]: [] };
         }
         const shown = new Set(store[lang]);
-        let pool = words.filter(w => !shown.has(w.term));
+        // 词库先按规范化键去重，避免变体词同屏出现
+        const uniqWords = [];
+        const uniqSeen = new Set();
+        for (const w of words) {
+            const k = normalizeTerm(w.term);
+            if (k && !uniqSeen.has(k)) {
+                uniqSeen.add(k);
+                uniqWords.push(w);
+            }
+        }
+        let pool = uniqWords.filter(w => !shown.has(normalizeTerm(w.term)));
         if (pool.length < HOTWORDS_DISPLAY) {
             shown.clear();
-            pool = words.slice();
+            pool = uniqWords.slice();
         }
 
         // Fisher-Yates 洗牌后取前 N 个
@@ -120,7 +135,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             [pool[i], pool[j]] = [pool[j], pool[i]];
         }
         const picked = pool.slice(0, HOTWORDS_DISPLAY);
-        picked.forEach(w => shown.add(w.term));
+        picked.forEach(w => shown.add(normalizeTerm(w.term)));
         store[lang] = Array.from(shown);
         try { localStorage.setItem(HOTWORDS_SHOWN_KEY, JSON.stringify(store)); } catch (e) { /* 存储满时静默 */ }
         return picked;
