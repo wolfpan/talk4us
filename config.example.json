@@ -1,6 +1,6 @@
 {
   "defaultModel": "glm",
-  "hotwordsModel": "glm",
+  "hotwordsModel": "deepseek",
   "hotwordsSearch": {
     "enabled": true,
     "key": "env:TAVILY_API_KEY",
