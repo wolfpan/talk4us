@@ -22,11 +22,98 @@ app.get('/api/config', (req, res) => {
     });
 });
 
-// 初始化 Supabase 客户端，用于后端验证 JWT 
+// 初始化 Supabase 客户端，用于后端验证 JWT
 const supabase = createClient(
-    process.env.SUPABASE_URL, 
+    process.env.SUPABASE_URL,
     process.env.SUPABASE_ANON_KEY
 );
+
+// =========================================
+// Supabase 保活与自动恢复
+// 免费版项目闲置 7 天会被平台暂停（表现为全站鉴权失败），需到后台 Restore。
+// 这里每天带 apikey 请求一次 REST API 计为活跃，防止被暂停；
+// 若项目仍被暂停且配置了 SUPABASE_ACCESS_TOKEN，则通过 Management API
+// 自动触发 Restore（等价于后台手动点击恢复）。
+// 可选环境变量：
+//   SUPABASE_ACCESS_TOKEN    个人访问令牌（https://supabase.com/dashboard/account/tokens，sbp_ 开头）
+//   SUPABASE_KEEPALIVE_CRON  保活时间表，默认 "0 9 * * *"（每天 09:00）
+//   SUPABASE_KEEPALIVE_DISABLED  设为 1 关闭保活
+// =========================================
+(function initSupabaseKeepAlive() {
+    const cron = require('node-cron');
+    const supabaseUrl = (process.env.SUPABASE_URL || '').replace(/\/+$/, '');
+    const anonKey = process.env.SUPABASE_ANON_KEY || '';
+    const accessToken = process.env.SUPABASE_ACCESS_TOKEN || '';
+
+    let projectRef = '';
+    try {
+        const host = new URL(supabaseUrl).hostname;
+        if (host.endsWith('.supabase.co')) projectRef = host.split('.')[0];
+    } catch (e) { /* URL 非法时跳过保活 */ }
+
+    // 本地 dummy 配置、URL 缺失或显式关闭时不启用
+    // （Supabase 项目 ref 固定为 20 位小写字母数字，借此过滤占位值）
+    if (!/^[a-z0-9]{20}$/.test(projectRef) || !anonKey || process.env.SUPABASE_KEEPALIVE_DISABLED === '1') return;
+
+    const log = (...args) => console.log('[supabase-keepalive]', ...args);
+
+    async function pingProject() {
+        // 带 apikey 的 Auth API 请求会被 Supabase 计为项目活跃，重置 7 天闲置计时
+        // （用 /auth/v1/settings 而非 /rest/v1/：新版 sb_publishable_ 密钥会被 PostgREST 拒绝 401，GoTrue 则正常接受）
+        return axios.get(`${supabaseUrl}/auth/v1/settings`, {
+            headers: { apikey: anonKey, Authorization: `Bearer ${anonKey}` },
+            timeout: 15000,
+            validateStatus: () => true // 暂停中的项目返回 5xx，不抛错以便按状态码判断
+        });
+    }
+
+    async function autoRestoreIfPaused() {
+        if (!accessToken) {
+            log('项目疑似被暂停。未配置 SUPABASE_ACCESS_TOKEN，无法自动恢复，请到 Supabase 后台手动 Restore（或按 README 配置令牌开启自动恢复）。');
+            return;
+        }
+        const mgmtHeaders = { Authorization: `Bearer ${accessToken}` };
+        try {
+            const { data: project } = await axios.get(
+                `https://api.supabase.com/v1/projects/${projectRef}`,
+                { headers: mgmtHeaders, timeout: 15000 }
+            );
+            if (project && project.status === 'inactive') {
+                await axios.post(
+                    `https://api.supabase.com/v1/projects/${projectRef}/restore`,
+                    {},
+                    { headers: mgmtHeaders, timeout: 15000 }
+                );
+                log(`项目已暂停，自动恢复已触发（通常几分钟内完成，期间鉴权暂不可用）。`);
+            } else {
+                log(`项目状态为 "${project && project.status}"（非暂停），REST 异常可能是瞬时故障，留待下次检查。`);
+            }
+        } catch (err) {
+            log('自动恢复失败:', err.response ? `${err.response.status} ${JSON.stringify(err.response.data)}` : err.message);
+        }
+    }
+
+    async function run() {
+        try {
+            const res = await pingProject();
+            if (res.status >= 200 && res.status < 400) {
+                log('保活成功，项目在线。');
+            } else {
+                log(`REST 返回状态 ${res.status}，检查项目是否被暂停...`);
+                await autoRestoreIfPaused();
+            }
+        } catch (err) {
+            log('REST 请求失败:', err.message);
+            await autoRestoreIfPaused();
+        }
+    }
+
+    const expr = process.env.SUPABASE_KEEPALIVE_CRON || '0 9 * * *';
+    cron.schedule(expr, run);
+    // 启动后延迟执行一次：服务重启时若项目恰好被暂停可立即自愈
+    setTimeout(run, 30 * 1000);
+    log(`已启用（计划: ${expr}）。${accessToken ? '检测到暂停时将自动 Restore。' : '未配置 SUPABASE_ACCESS_TOKEN，暂停时仅告警不自动恢复。'}`);
+})();
 
 // =========================================
 // 模型网关配置：统一由 config.json 管理（API 地址 / 密钥 / 模型选择）
@@ -379,7 +466,7 @@ ${jsonFormatInstruction}`;
 // 4. 每周热词接口（AI 自动检索当周热点词汇，按自然周缓存）
 // =========================================
 const HOTWORDS_CACHE_FILE = path.join(__dirname, '.hotwords-cache.json');
-const HOTWORDS_COUNT = 8;
+const HOTWORDS_COUNT = 24; // 每语言周词库容量（前端每次随机抽取其中 8 个展示）
 const hotwordsMemCache = new Map();   // key: `${lang}@${isoWeek}` -> words[]
 const hotwordsInflight = new Map();   // 同周同语言的并发请求去重，避免重复消耗 AI 额度
 
@@ -421,27 +508,52 @@ function persistHotwordsCache(weekKey) {
 }
 
 function buildHotwordsPrompt(lang, weekKey, count) {
+    // 地域聚焦：中国、美国、日韩四地本月真实热点，禁止收录过时旧词
     const specs = {
         zh: {
-            intro: `请筛选本周（${weekKey}）中文互联网上最新、最热门的 ${count} 个热点词汇/流行语/新梗，领域尽量分散，覆盖：科技、数码、时事、游戏、电影、生活、文化。`,
-            fields: `- "term": 中文热词原文
+            intro: `你是热点新闻编辑。请检索本月（ISO周 ${weekKey}）正在发生或发酵的真实热点新闻，从中提炼 ${count} 个最新热词/流行语/新梗。
+
+【新鲜度硬性要求】
+- 每个词必须与本月的真实事件直接相关：热点新闻、产品发布、体育赛事、影视综艺、社交媒体爆点、政策新规等
+- 严禁收录“元宇宙”“内卷”“双减”“躺平”等一年以前的旧词；严禁编造不存在的词
+
+【地域要求】主要覆盖中国、美国、日本、韩国四地的热点，大致均衡（侧重中国与美国）。
+
+【领域要求】科技、数码、时事、游戏、电影、生活、文化等领域尽量分散。`,
+            fields: `- "term": 热词原文（中文热词用中文；美/日/韩源热词可用原文或其通行的中文译名）
 - "translation": 对应的地道英文表达（简短）
 - "category": 所属领域，中文，从「科技/数码/时事/游戏/电影/生活/文化」中选择
-- "origin": 用一句中文（30字以内）介绍该词的来源或出处`
+- "origin": 用一句中文（35字以内）点明该词对应的具体热点事件或来源`
         },
         en: {
-            intro: `Pick the ${count} freshest trending terms / slang / buzzwords of this week (${weekKey}) from the English-speaking internet. Spread them across: Tech, Gadgets, Current Affairs, Gaming, Movies, Lifestyle, Culture.`,
-            fields: `- "term": the English trending term
+            intro: `You are a breaking-news editor. Identify ${count} trending terms / slang / buzzwords born from REAL hot events of this month (ISO week ${weekKey}) — news, product launches, sports, entertainment, viral social media moments.
+
+[HARD FRESHNESS RULES]
+- Every term must trace to an actual event from THIS month; stale memes ("metaverse", "brat summer") are forbidden
+- Never invent terms that don't exist
+
+[REGIONS] Focus on the United States and China, plus Japan and South Korea, roughly balanced.
+
+[CATEGORIES] Spread across Tech, Gadgets, News, Gaming, Movies, Lifestyle, Culture.`,
+            fields: `- "term": the trending term (US terms in English; CN/JP/KR terms in romanized or original form)
 - "translation": its natural Chinese equivalent (short)
 - "category": one of Tech/Gadgets/News/Gaming/Movies/Lifestyle/Culture (in English)
-- "origin": one English sentence (max 20 words) explaining where the term came from`
+- "origin": one English sentence (max 22 words) naming the specific event it comes from`
         },
         jp: {
-            intro: `今週（${weekKey}）の日本のインターネットで話題の最新トレンド語・流行語・バズワードを${count}個選んでください。分野は「テック、ガジェット、時事、ゲーム、映画、ライフ、カルチャー」からまんべんなく。`,
-            fields: `- "term": 日本語のトレンドワード
+            intro: `あなたはニュース編集者です。今月（ISO週 ${weekKey}）に実際に起きた・進行中の話題のニュースから生まれた最新トレンド語・流行語・バズワードを${count}個取り上げてください。
+
+【新鮮度の厳守事項】
+- 各語は今月の実際の事件・話題（ニュース、製品発表、スポーツ、エンタメ、SNSで拡散した出来事）に紐づくこと
+- 「メタバース」などの数年前の古い語や、実在しない語の捏造は禁止
+
+【地域】日本と韓国を中心に、中国・アメリカの話題もバランスよく含める。
+
+【分野】テック、ガジェット、時事、ゲーム、映画、ライフ、カルチャーに分散。`,
+            fields: `- "term": トレンドワード（日本の語は日本語；中・米・韓の語は原語または通用する日本語表記）
 - "translation": 対応する自然な英語表現（短く）
 - "category": 「テック/ガジェット/時事/ゲーム/映画/ライフ/カルチャー」から一つ（日本語）
-- "origin": その語の出所・由来を日本語で一文（30字以内）で`
+- "origin": その語が生まれた具体的な事件・話題を日本語で一文（35字以内）で`
         }
     };
     const spec = specs[lang] || specs.zh;
@@ -506,7 +618,7 @@ async function generateHotwords(lang, weekKey) {
             'Authorization': `Bearer ${config.key}`,
             'Content-Type': 'application/json'
         },
-        timeout: 60000
+        timeout: 90000
     });
 
     const text = response.data.choices[0].message.content;
