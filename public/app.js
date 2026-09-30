@@ -151,8 +151,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         };
         const newsUrl = (w) => {
             const q = encodeURIComponent(w.term + (w.source ? ' ' + w.source : ''));
+            // Bing 国内版无新闻垂直页（/news/search 会 302 回首页），改用主搜索 + 新闻关键词
             return isMainlandChina()
-                ? `https://cn.bing.com/news/search?q=${q}`
+                ? `https://cn.bing.com/search?q=${q}%20新闻`
                 : `https://news.google.com/search?q=${q}`;
         };
         hotwordsGrid.innerHTML = picked.map(w => `
