@@ -39,7 +39,7 @@
     "gemini-flash-lite": {
       "name": "Gemini Flash Lite",
       "url": "https://generativelanguage.googleapis.com/v1beta",
-      "model": "gemini-2.5-flash-lite",
+      "model": "gemini-3.5-flash-lite",
       "key": "env:GEMINI_API_KEY",
       "requiresLogin": false,
       "enabled": true,
