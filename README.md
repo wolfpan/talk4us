@@ -142,13 +142,16 @@ DS_API_KEY=你的_DeepSeek_API_Key
 TAVILY_API_KEY=tvly开头的_Tavily_API_Key
 
 # Supabase 自动恢复（可选，强烈建议免费版配置）
-# 免费版项目闲置 7 天会被暂停、全站鉴权失败。服务内置每日保活；
+# 免费版项目闲置 7 天会被暂停、全站鉴权失败。服务内置每日多次保活
+# （对 /storage/v1/bucket 等端点发起真实数据库查询，符合官方
+# "user database activity" 活跃口径；仅 ping Auth 配置端点无效）；
 # 配置个人访问令牌后，项目万一被暂停也会自动 Restore，无需再到后台手动恢复。
 # 令牌获取：https://supabase.com/dashboard/account/tokens （sbp_ 开头）
 SUPABASE_ACCESS_TOKEN=你的_Supabase_Access_Token
 ```
 
-> 可选：`SUPABASE_KEEPALIVE_CRON` 自定义保活时间表（默认 `0 9 * * *` 每天 09:00）；设 `SUPABASE_KEEPALIVE_DISABLED=1` 可关闭保活。
+> 可选：`SUPABASE_KEEPALIVE_CRON` 自定义保活时间表（默认 `0 3,9,15 * * *` 每天 3 次）；设 `SUPABASE_KEEPALIVE_DISABLED=1` 可关闭保活。
+> 进阶：若把 `SUPABASE_ANON_KEY` 换成 Legacy API Keys 中的 anon key（`eyJ` 开头的 JWT，Dashboard → Project Settings → API Keys），保活还会对 REST API 发起真实表查询，活动信号更强；新式 `sb_publishable_` 密钥下 REST 会被拒 401，此为平台行为，不影响 Storage 保活通道。
 
 ### 3. 配置 AI 引擎
 

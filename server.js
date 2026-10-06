@@ -31,12 +31,20 @@ const supabase = createClient(
 // =========================================
 // Supabase 保活与自动恢复
 // 免费版项目闲置 7 天会被平台暂停（表现为全站鉴权失败），需到后台 Restore。
-// 这里每天带 apikey 请求一次 REST API 计为活跃，防止被暂停；
+// 判定"活跃"的官方口径是 user database activity——打到数据库的用户请求
+// （https://supabase.com/docs/guides/platform/free-project-pausing）。
+// 实测（2026-10）：仅 ping /auth/v1/settings（Auth 配置端点，不触库）
+// 无法阻止暂停预警邮件；这里改为每天多次真实数据库活动：
+//   1. GET /storage/v1/bucket —— 真实数据库查询（RLS 过滤的 bucket 列表），
+//      且兼容新式 sb_publishable_ 密钥，为主力保活请求；
+//   2. GET /rest/v1/         —— 新式密钥下返回 401（仅 legacy JWT 密钥可用）；
+//      若返回 200，则对 OpenAPI 中的首张表追加一次 ?select=*&limit=1 真实查询；
+//   3. GET /auth/v1/settings —— 不触库，仅作服务在线信号（暂停项目返回 5xx）。
 // 若项目仍被暂停且配置了 SUPABASE_ACCESS_TOKEN，则通过 Management API
 // 自动触发 Restore（等价于后台手动点击恢复）。
 // 可选环境变量：
 //   SUPABASE_ACCESS_TOKEN    个人访问令牌（https://supabase.com/dashboard/account/tokens，sbp_ 开头）
-//   SUPABASE_KEEPALIVE_CRON  保活时间表，默认 "0 9 * * *"（每天 09:00）
+//   SUPABASE_KEEPALIVE_CRON  保活时间表，默认 "0 3,9,15 * * *"（每天 3 次）
 //   SUPABASE_KEEPALIVE_DISABLED  设为 1 关闭保活
 // =========================================
 (function initSupabaseKeepAlive() {
@@ -58,13 +66,38 @@ const supabase = createClient(
     const log = (...args) => console.log('[supabase-keepalive]', ...args);
 
     async function pingProject() {
-        // 带 apikey 的 Auth API 请求会被 Supabase 计为项目活跃，重置 7 天闲置计时
-        // （用 /auth/v1/settings 而非 /rest/v1/：新版 sb_publishable_ 密钥会被 PostgREST 拒绝 401，GoTrue 则正常接受）
-        return axios.get(`${supabaseUrl}/auth/v1/settings`, {
-            headers: { apikey: anonKey, Authorization: `Bearer ${anonKey}` },
-            timeout: 15000,
-            validateStatus: () => true // 暂停中的项目返回 5xx，不抛错以便按状态码判断
-        });
+        // 组合保活：storage（真实 DB 查询）+ rest（若密钥可用则含表查询）+ auth（在线信号）。
+        // 暂停中的项目经网关返回 5xx，因此任一端点返回 2xx~4xx 即视为项目在线。
+        const headers = { apikey: anonKey, Authorization: `Bearer ${anonKey}` };
+        const get = (url) => axios.get(url, { headers, timeout: 15000, validateStatus: () => true });
+        const hits = [];
+        let online = false;
+        const hit = (name, status) => {
+            hits.push(`${name}:${status}`);
+            if (status >= 200 && status < 500) online = true;
+        };
+
+        try {
+            hit('storage', (await get(`${supabaseUrl}/storage/v1/bucket`)).status);
+        } catch (e) { hits.push('storage:ERR'); }
+
+        try {
+            const r = await get(`${supabaseUrl}/rest/v1/`);
+            hit('rest', r.status);
+            const tbl = (r.status === 200 && r.data && r.data.definitions)
+                ? Object.keys(r.data.definitions)[0] : null;
+            if (tbl) {
+                hit(`rest-${tbl}`, (await get(
+                    `${supabaseUrl}/rest/v1/${encodeURIComponent(tbl)}?select=*&limit=1`
+                )).status);
+            }
+        } catch (e) { hits.push('rest:ERR'); }
+
+        try {
+            hit('auth', (await get(`${supabaseUrl}/auth/v1/settings`)).status);
+        } catch (e) { hits.push('auth:ERR'); }
+
+        return { hits, online };
     }
 
     async function autoRestoreIfPaused() {
@@ -95,20 +128,20 @@ const supabase = createClient(
 
     async function run() {
         try {
-            const res = await pingProject();
-            if (res.status >= 200 && res.status < 400) {
-                log('保活成功，项目在线。');
+            const { hits, online } = await pingProject();
+            if (online) {
+                log(`保活完成（${hits.join(' ')}），项目在线。`);
             } else {
-                log(`REST 返回状态 ${res.status}，检查项目是否被暂停...`);
+                log(`各端点均异常（${hits.join(' ')}），检查项目是否被暂停...`);
                 await autoRestoreIfPaused();
             }
         } catch (err) {
-            log('REST 请求失败:', err.message);
+            log('保活请求失败:', err.message);
             await autoRestoreIfPaused();
         }
     }
 
-    const expr = process.env.SUPABASE_KEEPALIVE_CRON || '0 9 * * *';
+    const expr = process.env.SUPABASE_KEEPALIVE_CRON || '0 3,9,15 * * *';
     cron.schedule(expr, run);
     // 启动后延迟执行一次：服务重启时若项目恰好被暂停可立即自愈
     setTimeout(run, 30 * 1000);
