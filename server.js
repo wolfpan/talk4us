@@ -161,9 +161,9 @@ const FALLBACK_CONFIG = {
     hotwordsModel: 'glm',
     models: {
         'glm': {
-            name: 'GLM 4 Flash',
+            name: 'GLM 4.7 Flash',
             url: 'https://open.bigmodel.cn/api/paas/v4/chat/completions',
-            model: 'glm-4-flash-250414',
+            model: 'glm-4.7-flash',
             key: 'env:GLM_API_KEY',
             requiresLogin: false,
             enabled: true

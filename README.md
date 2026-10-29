@@ -97,7 +97,7 @@ Talk4us 就是为这些时刻做的。**它不是逐字翻译的机器，而是�
 
 | | 游客模式 | 注册用户 |
 | --- | --- | --- |
-| AI 引擎 | GLM 4 Flash | 全部引擎（含 DeepSeek Flash 等） |
+| AI 引擎 | GLM 4.7 Flash | 全部引擎（含 DeepSeek Flash 等） |
 | 单次输入上限 | 300 字符 | 500 字符 |
 | 使用频率 | 20 次 / 小时 | 50 次 / 小时 |
 
@@ -168,9 +168,9 @@ cp config.example.json config.json
   "models": {
     // 示例一：免费引擎，游客可直接使用
     "glm": {
-      "name": "GLM 4 Flash",        // 前端下拉框显示名称
+      "name": "GLM 4.7 Flash",        // 前端下拉框显示名称
       "url": "https://open.bigmodel.cn/api/paas/v4/chat/completions",
-      "model": "glm-4-flash-250414",
+      "model": "glm-4.7-flash",
       "key": "env:GLM_API_KEY",     // 支持 "env:变量名" 引用 .env，或直接写明文密钥
       "requiresLogin": false,       // 游客即可选用
       "enabled": true               // false 时不下发到前端
@@ -202,7 +202,7 @@ cp config.example.json config.json
 
 | 引擎 | 免费情况 | 特点 |
 | --- | --- | --- |
-| [智谱 GLM-4-Flash](https://open.bigmodel.cn/) | 完全免费 | 国内直连、延迟低，**本项目默认引擎**，自建首选 |
+| [智谱 GLM-4.7-Flash](https://open.bigmodel.cn/) | 完全免费 | 国内直连、延迟低，**本项目默认引擎**，自建首选 |
 | [硅基流动 SiliconFlow](https://siliconflow.cn/) | 注册送额度，多款开源模型免费（Qwen、DeepSeek 蒸馏版等） | 国内直连，接口为 `https://api.siliconflow.cn/v1/chat/completions` |
 | [Google Gemini](https://aistudio.google.com/) (AI Studio) | 免费档每日额度 | 效果好、上下文长，但国内访问需自备网络 |
 | [Groq](https://groq.com/) | 免费档 | 推理速度极快，适合在意响应时间的场景 |
