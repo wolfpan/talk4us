@@ -1,5 +1,5 @@
 {
-  "defaultModel": "glm",
+  "defaultModel": "qwen",
   "hotwordsModel": "deepseek",
   "hotwordsSearch": {
     "enabled": true,
@@ -19,19 +19,19 @@
     ]
   },
   "models": {
-    "glm": {
-      "name": "GLM 4.7 Flash",
-      "url": "https://open.bigmodel.cn/api/paas/v4/chat/completions",
-      "model": "glm-4.7-flash",
-      "key": "env:GLM_API_KEY",
+    "qwen": {
+      "name": "Qwen3.7-Flash",
+      "url": "https://llm-5ai9omwsybwdqiht.cn-beijing.maas.aliyuncs.com/compatible-mode/v1/chat/completions",
+      "model": "qwen3.7-flash",
+      "key": "env:ALI_API_KEY",
       "requiresLogin": false,
       "enabled": true
     },
     "deepseek": {
       "name": "DeepSeek Flash",
-      "url": "https://api.deepseek.com/chat/completions",
-      "model": "deepseek-flash",
-      "key": "env:DS_API_KEY",
+      "url": "https://openrouter.ai/api/v1/chat/completions",
+      "model": "deepseek/deepseek-v4.1-flash-1017",
+      "key": "env:OP_API_KEY",
       "requiresLogin": true,
       "enabled": true
     }

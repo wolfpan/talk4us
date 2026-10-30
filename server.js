@@ -157,22 +157,22 @@ let cachedConfig = null;
 let cachedConfigMtime = 0;
 
 const FALLBACK_CONFIG = {
-    defaultModel: 'glm',
-    hotwordsModel: 'glm',
+    defaultModel: 'qwen',
+    hotwordsModel: 'deepseek',
     models: {
-        'glm': {
-            name: 'GLM 4.7 Flash',
-            url: 'https://open.bigmodel.cn/api/paas/v4/chat/completions',
-            model: 'glm-4.7-flash',
-            key: 'env:GLM_API_KEY',
+        'qwen': {
+            name: 'Qwen3.7-Flash',
+            url: 'https://llm-5ai9omwsybwdqiht.cn-beijing.maas.aliyuncs.com/compatible-mode/v1/chat/completions',
+            model: 'qwen3.7-flash',
+            key: 'env:ALI_API_KEY',
             requiresLogin: false,
             enabled: true
         },
         'deepseek': {
             name: 'DeepSeek Flash',
-            url: 'https://api.deepseek.com/chat/completions',
-            model: 'deepseek-flash',
-            key: 'env:DS_API_KEY',
+            url: 'https://openrouter.ai/api/v1/chat/completions',
+            model: 'deepseek/deepseek-v4.1-flash-1017',
+            key: 'env:OP_API_KEY',
             requiresLogin: true,
             enabled: true
         }
@@ -285,11 +285,12 @@ const enhanceRateLimiter = rateLimit({
 // 3. 核心重构接口 (挂载中间件)
 // =========================================
 app.post('/api/enhance', checkAuth, enhanceRateLimiter, async (req, res) => {
-    const { userText, contextType, outputLang, modelChoice = 'glm' } = req.body;
+    const { userText, contextType, outputLang, modelChoice } = req.body;
     const user = req.user; // 直接从上游中间件获取 user 状态
+    const defaultModelId = loadConfig().defaultModel;
 
     // 核心权限控制：非登录用户强行请求非默认模型时直接拦截
-    if (!user && modelChoice !== 'glm') {
+    if (!user && modelChoice && modelChoice !== defaultModelId) {
         return res.status(401).json({ error: "权限不足：该模型仅限注册登录用户使用。" });
     }
 
@@ -306,7 +307,6 @@ app.post('/api/enhance', checkAuth, enhanceRateLimiter, async (req, res) => {
     }
 
     // 后端兜底收敛：确保即使前端被绕过，非登录用户的模型仍会降级为默认引擎
-    const defaultModelId = loadConfig().defaultModel;
     const finalModel = user ? modelChoice : defaultModelId;
     let config = getModelConfig(finalModel) || getModelConfig(defaultModelId);
 

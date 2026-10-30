@@ -97,7 +97,7 @@ Talk4us 就是为这些时刻做的。**它不是逐字翻译的机器，而是�
 
 | | 游客模式 | 注册用户 |
 | --- | --- | --- |
-| AI 引擎 | GLM 4.7 Flash | 全部引擎（含 DeepSeek Flash 等） |
+| AI 引擎 | Qwen3.7-Flash | 全部引擎（含 DeepSeek Flash 等） |
 | 单次输入上限 | 300 字符 | 500 字符 |
 | 使用频率 | 20 次 / 小时 | 50 次 / 小时 |
 
@@ -134,8 +134,8 @@ SUPABASE_URL=你的_Supabase_Project_URL
 SUPABASE_ANON_KEY=你的_Supabase_Anon_Key
 
 # AI 引擎密钥（按需填写，与 config.json 中 env: 引用对应）
-GLM_API_KEY=你的_智谱_API_Key
-DS_API_KEY=你的_DeepSeek_API_Key
+ALI_API_KEY=你的_阿里云百炼_API_Key
+OP_API_KEY=你的_OpenRouter_API_Key
 
 # Tavily 新闻搜索（可选）：为每周热词提供真实新闻线索与文章链接
 # 在 https://tavily.com 注册获取（免费层 1000 次/月）
@@ -163,24 +163,24 @@ cp config.example.json config.json
 
 ```jsonc
 {
-  "defaultModel": "glm",            // 游客默认引擎 & 未匹配时的回退引擎
-  "hotwordsModel": "glm",           // 每周热词生成使用的引擎（缺省用 defaultModel）
+  "defaultModel": "qwen",           // 游客默认引擎 & 未匹配时的回退引擎
+  "hotwordsModel": "deepseek",      // 每周热词生成使用的引擎（缺省用 defaultModel）
   "models": {
     // 示例一：免费引擎，游客可直接使用
-    "glm": {
-      "name": "GLM 4.7 Flash",        // 前端下拉框显示名称
-      "url": "https://open.bigmodel.cn/api/paas/v4/chat/completions",
-      "model": "glm-4.7-flash",
-      "key": "env:GLM_API_KEY",     // 支持 "env:变量名" 引用 .env，或直接写明文密钥
+    "qwen": {
+      "name": "Qwen3.7-Flash",        // 前端下拉框显示名称
+      "url": "https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions",
+      "model": "qwen3.7-flash",
+      "key": "env:ALI_API_KEY",     // 支持 "env:变量名" 引用 .env，或直接写明文密钥
       "requiresLogin": false,       // 游客即可选用
       "enabled": true               // false 时不下发到前端
     },
     // 示例二：注册后才解锁的高级引擎
     "deepseek": {
       "name": "DeepSeek Flash",
-      "url": "https://api.deepseek.com/chat/completions",
-      "model": "deepseek-flash",
-      "key": "env:DS_API_KEY",
+      "url": "https://openrouter.ai/api/v1/chat/completions",
+      "model": "deepseek/deepseek-v4.1-flash-1017",
+      "key": "env:OP_API_KEY",
       "requiresLogin": true,        // 登录用户专用
       "enabled": true
     }
@@ -202,7 +202,7 @@ cp config.example.json config.json
 
 | 引擎 | 免费情况 | 特点 |
 | --- | --- | --- |
-| [智谱 GLM-4.7-Flash](https://open.bigmodel.cn/) | 完全免费 | 国内直连、延迟低，**本项目默认引擎**，自建首选 |
+| [阿里云 Qwen3.7-Flash](https://www.aliyun.com/product/bailian) | 免费额度 | 国内直连、延迟低，**本项目默认引擎**，自建首选 |
 | [硅基流动 SiliconFlow](https://siliconflow.cn/) | 注册送额度，多款开源模型免费（Qwen、DeepSeek 蒸馏版等） | 国内直连，接口为 `https://api.siliconflow.cn/v1/chat/completions` |
 | [Google Gemini](https://aistudio.google.com/) (AI Studio) | 免费档每日额度 | 效果好、上下文长，但国内访问需自备网络 |
 | [Groq](https://groq.com/) | 免费档 | 推理速度极快，适合在意响应时间的场景 |
